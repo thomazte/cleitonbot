@@ -1,0 +1,8 @@
+node_modules/
+auth_info_baileys/
+temp/*
+!temp/.gitkeep
+.env
+*.log
+.DS_Store
+Thumbs.db

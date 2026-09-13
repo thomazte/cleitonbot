@@ -1,0 +1,31 @@
+{
+  "name": "cleiton-bot",
+  "version": "1.0.0",
+  "description": "Cleiton Bot — figurinhas estáticas e animadas no WhatsApp",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "sticker",
+    "bot",
+    "cleiton"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
+    "dotenv": "^16.4.7",
+    "fluent-ffmpeg": "^2.1.3",
+    "node-webpmux": "^3.2.0",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0",
+    "sharp": "^0.33.5"
+  }
+}
