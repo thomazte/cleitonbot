@@ -6,3 +6,8 @@ temp/*
 *.log
 .DS_Store
 Thumbs.db
+
+# Regras locais de assistente; não versionar
+.cursor/
+.cursorrules
+.aiassistant/
