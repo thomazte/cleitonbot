@@ -92,6 +92,9 @@ export function createMessageHandler(sock, options) {
       // Não responde às próprias mensagens do número do bot
       if (msg.key.fromMe) return
 
+      // Em grupo só responde a comandos; a boas-vindas fica só no privado
+      if (isGroupJid(jid)) return
+
       const last = welcomeSentAt.get(jid) || 0
       if (Date.now() - last >= WELCOME_COOLDOWN_MS) {
         welcomeSentAt.set(jid, Date.now())
@@ -176,6 +179,11 @@ export function createMessageHandler(sock, options) {
   }
 
   return { handleMessagesUpsert }
+}
+
+/** Grupos do WhatsApp usam JID terminado em @g.us. */
+function isGroupJid(jid) {
+  return typeof jid === 'string' && jid.endsWith('@g.us')
 }
 
 /**
