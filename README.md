@@ -36,6 +36,7 @@ Opcional — personalize o pacote e o autor:
 
 - Vídeos de até **30 segundos** (a figurinha usa cerca de **4,5 s**)
 - Figurinhas estáticas e animadas no formato do WhatsApp (512×512)
+- A mídia é **esticada** até preencher o quadrado. A proporção original não é mantida.
 
 ---
 

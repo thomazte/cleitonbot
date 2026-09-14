@@ -22,9 +22,9 @@ Baileys não usa a API oficial do WhatsApp Business Cloud. A operação depende 
 
 | Tecnologia | Papel |
 |------------|--------|
-| **sharp** | Pipeline de imagem: rotate, resize 512×512 (`contain` + alpha), export WebP com controle de qualidade |
+| **sharp** | Pipeline de imagem: rotate, resize 512×512 (`fill`, estica até o quadrado), export WebP com controle de qualidade |
 | **fluent-ffmpeg** | Orquestra chamadas ao FFmpeg para GIF/vídeo → WebP animado |
-| **FFmpeg / ffprobe** | Binários de sistema: corte de duração, fps, escala e compressão |
+| **FFmpeg / ffprobe** | Binários de sistema: corte de duração, fps, escala esticada para 512×512 e compressão |
 | **node-webpmux** | Injeta EXIF de figurinha (nome do pacote, autor, emoji) no WebP final |
 
 ### Limites aplicados no código

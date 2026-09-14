@@ -9,7 +9,8 @@ const HELP_TEXT =
   '*Como criar figurinhas*\n' +
   '1. Envie uma imagem/GIF/vídeo com legenda `!s` (ou responda a uma mídia com `!s`)\n' +
   '2. Opcional: `!s Nome do Pacote | Autor`\n' +
-  '3. Vídeos: até 30s (a figurinha usa ~4,5s)'
+  '3. A figurinha estica a mídia até ficar quadrada (512×512)\n' +
+  '4. Vídeos: até 30s (a figurinha usa ~4,5s)'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +

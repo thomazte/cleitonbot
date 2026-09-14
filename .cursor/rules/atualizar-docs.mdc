@@ -1,0 +1,19 @@
+---
+description: Atualizar a documentação sempre que o comportamento, os comandos ou a operação mudarem
+alwaysApply: true
+---
+
+# Documentação acompanha a mudança
+
+Depois de qualquer alteração de comportamento, comando, limite, fluxo, script de operação ou estrutura do repositório, atualize na mesma tarefa os documentos que ficariam falsos. Não encerre a tarefa com docs desatualizados.
+
+Confira nesta ordem e edite só o que a mudança torna incorreto:
+
+- `README.md` — o que o usuário do WhatsApp vê
+- `src/handlers/messageHandler.js` (`HELP_TEXT`, `WELCOME_TEXT`) — ajuda e boas-vindas enviadas pelo bot
+- `docs/comandos.md` — contrato dos comandos
+- `docs/arquitetura.md` — fluxo e estrutura de pastas
+- `docs/tecnologias.md` — stack, limites e papel de cada ferramenta
+- `docs/operacao.md` — deploy, scripts, PM2 e variáveis
+
+Não documente o que não mudou. Não invente comportamento que o código não faz.

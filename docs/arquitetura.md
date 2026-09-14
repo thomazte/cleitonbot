@@ -34,8 +34,8 @@ WhatsApp  ←→  Baileys (socket)  →  messageHandler  →  StickerService  �
 2. O handler valida o comando e localiza a mídia (mensagem atual ou citada).
 3. A mídia é baixada via `downloadMediaMessage` (Baileys).
 4. `StickerService` gera WebP:
-   - **Imagem:** Sharp (redimensiona 512×512, fundo transparente, compressão).
-   - **GIF/vídeo:** FFmpeg (clip ~4,5 s, fps limitado, tamanho alvo).
+   - **Imagem:** Sharp (esticada para 512×512, sem preservar a proporção, compressão).
+   - **GIF/vídeo:** FFmpeg (esticado para 512×512, clip ~4,5 s, fps limitado, tamanho alvo).
 5. Metadados de pacote/autor são injetados com `node-webpmux`.
 6. O bot responde com a figurinha na mesma conversa (mensagem citada).
 
@@ -63,6 +63,7 @@ cleitonbot/
 │   ├── handlers/
 │   ├── services/
 │   └── utils/
+├── scripts/              # Validação do esticamento quadrado
 ├── docs/                 # Documentação técnica
 ├── docs/assets/          # Assets públicos (ex.: QR do contato)
 ├── temp/                 # Runtime

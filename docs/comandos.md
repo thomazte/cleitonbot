@@ -46,6 +46,10 @@ Após o comando, o usuário pode informar pacote e autor separados por `|`:
 
 Tipos reconhecidos: imagem, vídeo, GIF (via vídeo/documento), sticker estático (reprocessável como imagem) e sticker animado (tratado como vídeo/WebP).
 
+### Formato da figurinha
+
+A mídia é esticada até preencher 512×512. A proporção original não é mantida: não há barras transparentes e os cantos da mídia original entram na figurinha.
+
 ## Ajuda
 
 | Comando | Resposta |

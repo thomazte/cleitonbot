@@ -75,6 +75,22 @@ pm2 restart cleiton-bot
 
 **Não copie** `auth_info_baileys` entre máquinas a menos que saiba o que está fazendo — o pareamento limpo no servidor é mais seguro.
 
+## Validar o esticamento quadrado
+
+Um comando roda a mesma checagem nesta máquina e no VPS ao mesmo tempo: gera uma mídia fora de proporção, converte em figurinha e confirma que o resultado é 512×512 esticado (sem barras transparentes e sem cortar os cantos).
+
+```powershell
+npm run validate:square
+```
+
+O script envia `src/services/stickerService.js` e o teste para o VPS. Não reinicia o PM2. Depois que os dois passarem, no servidor:
+
+```bash
+pm2 restart cleiton-bot
+```
+
+Host, usuário, chave e pasta podem ser trocados com `CLEITON_SSH_HOST`, `CLEITON_SSH_USER`, `CLEITON_SSH_KEY` e `CLEITON_REMOTE_DIR`.
+
 ## Trocar o número do bot
 
 ```bash

@@ -49,8 +49,7 @@ export class StickerService {
         buffer = await sharp(inputBuffer, { animated: false })
           .rotate()
           .resize(STICKER_SIZE, STICKER_SIZE, {
-            fit: 'contain',
-            background: { r: 0, g: 0, b: 0, alpha: 0 },
+            fit: 'fill',
           })
           .webp({ quality, alphaQuality: 90, effort: 6 })
           .toBuffer()
@@ -132,8 +131,7 @@ export class StickerService {
   #renderAnimatedWebp(inputPath, outputPath, preset) {
     const vf = [
       'format=rgba',
-      `scale=${STICKER_SIZE}:${STICKER_SIZE}:force_original_aspect_ratio=decrease:flags=lanczos`,
-      `pad=${STICKER_SIZE}:${STICKER_SIZE}:(ow-iw)/2:(oh-ih)/2:color=0x00000000`,
+      `scale=${STICKER_SIZE}:${STICKER_SIZE}:flags=lanczos`,
       `fps=${preset.fps}`,
     ].join(',')
 

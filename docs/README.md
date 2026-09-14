@@ -6,7 +6,7 @@ Documentação de arquitetura, stack e operação do **Cleiton Bot**, mantido po
 |-----------|----------|
 | [Arquitetura](./arquitetura.md) | Visão geral, fluxo de mensagens e estrutura do repositório |
 | [Stack e tecnologias](./tecnologias.md) | Dependências, papéis e justificativas técnicas |
-| [Operação e deploy](./operacao.md) | Ambiente, variáveis, PM2 e troca de sessão WhatsApp |
+| [Operação e deploy](./operacao.md) | Ambiente, variáveis, PM2, validação do esticamento e troca de sessão WhatsApp |
 | [API de comandos](./comandos.md) | Contratos dos comandos expostos aos usuários |
 
 ---
