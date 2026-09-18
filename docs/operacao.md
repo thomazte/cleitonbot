@@ -2,10 +2,10 @@
 
 ## Pré-requisitos
 
-- Node.js **18+**
+- Node.js **18+** (recomendado 20 LTS)
 - FFmpeg e ffprobe instalados
 - Conta WhatsApp dedicada ao bot (recomendado: não usar número pessoal)
-- VPS ou máquina sempre ligada para operação 24h (opcional, via PM2)
+- VPS Linux (Ubuntu) sempre ligada para operação 24h, com PM2
 
 ## Configuração
 
@@ -23,8 +23,8 @@ npm install
 | `AUTH_DIR` | Pasta da sessão Baileys | `auth_info_baileys` |
 | `TEMP_DIR` | Pasta de arquivos temporários | `temp` |
 | `LOG_LEVEL` | Nível do Pino | `info` |
-| `FFMPEG_PATH` | Caminho absoluto do ffmpeg (Windows) | — |
-| `FFPROBE_PATH` | Caminho absoluto do ffprobe (Windows) | — |
+| `FFMPEG_PATH` | Caminho absoluto do ffmpeg (se não estiver no `PATH`) | — |
+| `FFPROBE_PATH` | Caminho absoluto do ffprobe (se não estiver no `PATH`) | — |
 
 No Linux/VPS, deixe `FFMPEG_PATH` / `FFPROBE_PATH` comentados se os binários estiverem no `PATH`.
 
@@ -41,12 +41,14 @@ No primeiro start (ou após logout), o terminal exibe um **QR Code**. No celular
 
 Não use a câmera do sistema fora dessa tela.
 
-## Produção com PM2
+## Produção com PM2 (VPS)
+
+Layout típico no servidor: `/root/cleitonbot` (ou `~/cleitonbot`).
 
 ```bash
-cd ~/cleitonbot
+cd /root/cleitonbot
 npm install
-pm2 start src/index.js --name cleiton-bot
+pm2 start src/index.js --name cleiton-bot --cwd /root/cleitonbot
 pm2 save
 pm2 startup    # seguir o comando sugerido pelo PM2
 ```
@@ -59,43 +61,61 @@ pm2 logs cleiton-bot
 pm2 restart cleiton-bot
 ```
 
-Atualizar código no servidor após mudanças locais (exemplo com `scp`):
+### Atualizar código a partir do Linux local
 
-```powershell
-scp -i $env:USERPROFILE\.ssh\CHAVE -r .\src .\package.json .\package-lock.json ubuntu@IP:~/cleitonbot/
+```bash
+rsync -avz -e "ssh -i ~/.ssh/CHAVE" \
+  --exclude node_modules --exclude auth_info_baileys --exclude temp --exclude .git \
+  ./ root@IP:/root/cleitonbot/
 ```
 
 No VPS:
 
 ```bash
-cd ~/cleitonbot
+cd /root/cleitonbot
 npm install
 pm2 restart cleiton-bot
 ```
 
 **Não copie** `auth_info_baileys` entre máquinas a menos que saiba o que está fazendo — o pareamento limpo no servidor é mais seguro.
 
-## Validar o esticamento quadrado
+### QR de sessão no VPS
 
-Um comando roda a mesma checagem nesta máquina e no VPS ao mesmo tempo: gera uma mídia fora de proporção, converte em figurinha e confirma que o resultado é 512×512 esticado (sem barras transparentes e sem cortar os cantos).
+```bash
+ssh -i ~/.ssh/CHAVE root@IP 'pm2 logs cleiton-bot --lines 60'
+```
 
-```powershell
+Para forçar novo QR (troca de número / sessão inválida), veja a seção abaixo.
+
+## Validar modos fill / contain
+
+Um comando roda a mesma checagem nesta máquina e no VPS: gera mídia fora de proporção, converte em figurinha e valida:
+
+- **`fill` (`!s`)**: 512×512 esticado, sem barras transparentes
+- **`contain` (`!so`)**: 512×512 com proporção original e transparência nas bordas
+
+```bash
+export CLEITON_SSH_HOST=IP_DO_VPS
+export CLEITON_SSH_USER=root
+export CLEITON_SSH_KEY=$HOME/.ssh/CHAVE
+export CLEITON_REMOTE_DIR=/root/cleitonbot
+
 npm run validate:square
 ```
 
-O script envia `src/services/stickerService.js` e o teste para o VPS. Não reinicia o PM2. Depois que os dois passarem, no servidor:
+O script sincroniza `stickerService.js` e o teste para o VPS. **Não** reinicia o PM2. Depois que os dois passarem:
 
 ```bash
 pm2 restart cleiton-bot
 ```
 
-Host, usuário, chave e pasta podem ser trocados com `CLEITON_SSH_HOST`, `CLEITON_SSH_USER`, `CLEITON_SSH_KEY` e `CLEITON_REMOTE_DIR`.
+Sem as variáveis, o script usa os padrões definidos em `scripts/validate-square-both.mjs`.
 
 ## Trocar o número do bot
 
 ```bash
 pm2 stop cleiton-bot
-rm -rf ~/cleitonbot/auth_info_baileys
+rm -rf /root/cleitonbot/auth_info_baileys
 pm2 start cleiton-bot
 pm2 logs cleiton-bot
 ```
@@ -108,6 +128,7 @@ Escaneie o novo QR com o número desejado.
 - Prefira número exclusivo para o bot.
 - Mantenha dependências atualizadas, especialmente Baileys.
 - Monitore `pm2 logs` após deploys e após quedas de conexão.
+- Guarde a chave SSH privada (`~/.ssh/...`) com permissão `600`; sem ela o acesso ao VPS se perde.
 
 ## Licença
 

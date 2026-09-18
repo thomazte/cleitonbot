@@ -5,10 +5,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const host = process.env.CLEITON_SSH_HOST || '163.176.103.8'
-const user = process.env.CLEITON_SSH_USER || 'ubuntu'
+const host = process.env.CLEITON_SSH_HOST || '46.62.239.197'
+const user = process.env.CLEITON_SSH_USER || 'root'
 const key = process.env.CLEITON_SSH_KEY || path.join(os.homedir(), '.ssh', 'oracle_vps')
-const remoteDir = process.env.CLEITON_REMOTE_DIR || '/home/ubuntu/cleitonbot'
+const remoteDir = process.env.CLEITON_REMOTE_DIR || '/root/cleitonbot'
 
 const sshBase = [
   '-i', key,

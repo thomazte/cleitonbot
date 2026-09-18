@@ -19,23 +19,23 @@ WhatsApp  ←→  Baileys (socket)  →  messageHandler  →  StickerService  �
 | `src/handlers/messageHandler.js` | Parsing de comandos, boas-vindas (texto sem comando), resolução de mídia, download e resposta |
 | `src/services/stickerService.js` | Conversão imagem/vídeo → WebP + metadados EXIF (pacote/autor) |
 | `src/utils/fileCleaner.js` | Diretórios temporários e limpeza de arquivos intermediários |
-| `src/utils/ffmpegPaths.js` | Resolução de caminhos do FFmpeg/ffprobe (Windows e Linux) |
+| `src/utils/ffmpegPaths.js` | Resolução de caminhos do FFmpeg/ffprobe (PATH ou `.env`) |
 
 ## Fluxo de mensagens
 
 1. Chega texto ou mídia via `messages.upsert` (Baileys).
 2. Se for `!menu` / `!ajuda` → envia `HELP_TEXT`.
 3. Se for texto sem comando → envia boas-vindas (`WELCOME_TEXT`) com cooldown de 30 min por chat.
-4. Se for comando de figurinha (`!s` / etc.) → segue o fluxo abaixo.
+4. Se for comando de figurinha (`!s` / `!so` / etc.) → segue o fluxo abaixo.
 
 ## Fluxo de uma figurinha
 
-1. Usuário envia mídia com legenda `!s` (ou responde a uma mídia com `!s`).
-2. O handler valida o comando e localiza a mídia (mensagem atual ou citada).
+1. Usuário envia mídia com legenda `!s` ou `!so` (ou responde a uma mídia com o comando).
+2. O handler valida o comando, define o modo (`fill` ou `contain`) e localiza a mídia (mensagem atual ou citada).
 3. A mídia é baixada via `downloadMediaMessage` (Baileys).
 4. `StickerService` gera WebP:
-   - **Imagem:** Sharp (esticada para 512×512, sem preservar a proporção, compressão).
-   - **GIF/vídeo:** FFmpeg (esticado para 512×512, clip ~4,5 s, fps limitado, tamanho alvo).
+   - **Imagem:** Sharp → 512×512 (`fill` estica; `contain` preserva proporção + transparência).
+   - **GIF/vídeo:** FFmpeg → 512×512 no mesmo modo, clip ~4,5 s, fps limitado, tamanho alvo.
 5. Metadados de pacote/autor são injetados com `node-webpmux`.
 6. O bot responde com a figurinha na mesma conversa (mensagem citada).
 
@@ -63,7 +63,7 @@ cleitonbot/
 │   ├── handlers/
 │   ├── services/
 │   └── utils/
-├── scripts/              # Validação do esticamento quadrado
+├── scripts/              # Validação dos modos fill/contain (local + VPS)
 ├── docs/                 # Documentação técnica
 ├── docs/assets/          # Assets públicos (ex.: QR do contato)
 ├── temp/                 # Runtime

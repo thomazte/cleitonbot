@@ -23,6 +23,17 @@ const CLIP_DURATION_SEC = 4.5
  */
 
 /**
+ * @typedef {'fill' | 'contain'} StickerFit
+ * - `fill`: estica a mídia para preencher 512×512 (achatada).
+ * - `contain`: mantém a proporção original e preenche o resto com transparência.
+ */
+
+/**
+ * @typedef {object} StickerOptions
+ * @property {StickerFit} [fit]
+ */
+
+/**
  * Serviço de conversão de mídia em figurinhas WebP compatíveis com WhatsApp.
  */
 export class StickerService {
@@ -37,9 +48,11 @@ export class StickerService {
    * Converte buffer de imagem estática (jpg/png/webp) em figurinha.
    * @param {Buffer} inputBuffer
    * @param {StickerMeta} meta
+   * @param {StickerOptions} [options]
    * @returns {Promise<Buffer>}
    */
-  async fromImage(inputBuffer, meta) {
+  async fromImage(inputBuffer, meta, options = {}) {
+    const fit = options.fit === 'contain' ? 'contain' : 'fill'
     const outPath = tempPath(this.tempDir, '.webp')
     try {
       let quality = 80
@@ -49,7 +62,8 @@ export class StickerService {
         buffer = await sharp(inputBuffer, { animated: false })
           .rotate()
           .resize(STICKER_SIZE, STICKER_SIZE, {
-            fit: 'fill',
+            fit,
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
           })
           .webp({ quality, alphaQuality: 90, effort: 6 })
           .toBuffer()
@@ -74,9 +88,11 @@ export class StickerService {
    * @param {Buffer} inputBuffer
    * @param {string} inputExt  ex: ".mp4", ".gif"
    * @param {StickerMeta} meta
+   * @param {StickerOptions} [options]
    * @returns {Promise<Buffer>}
    */
-  async fromVideo(inputBuffer, inputExt, meta) {
+  async fromVideo(inputBuffer, inputExt, meta, options = {}) {
+    const fit = options.fit === 'contain' ? 'contain' : 'fill'
     const inPath = tempPath(this.tempDir, inputExt || '.mp4')
     const outPath = tempPath(this.tempDir, '.webp')
     const pathsToClean = [inPath, outPath]
@@ -102,7 +118,7 @@ export class StickerService {
       let finalBuffer = null
 
       for (const preset of presets) {
-        await this.#renderAnimatedWebp(inPath, outPath, preset)
+        await this.#renderAnimatedWebp(inPath, outPath, preset, fit)
         const buf = await fs.readFile(outPath)
         if (buf.length <= MAX_ANIMATED_BYTES) {
           finalBuffer = buf
@@ -127,13 +143,15 @@ export class StickerService {
    * @param {string} inputPath
    * @param {string} outputPath
    * @param {{ fps: number, quality: number }} preset
+   * @param {StickerFit} fit
    */
-  #renderAnimatedWebp(inputPath, outputPath, preset) {
-    const vf = [
-      'format=rgba',
-      `scale=${STICKER_SIZE}:${STICKER_SIZE}:flags=lanczos`,
-      `fps=${preset.fps}`,
-    ].join(',')
+  #renderAnimatedWebp(inputPath, outputPath, preset, fit) {
+    const scale =
+      fit === 'contain'
+        ? `scale=${STICKER_SIZE}:${STICKER_SIZE}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${STICKER_SIZE}:${STICKER_SIZE}:(ow-iw)/2:(oh-ih)/2:color=0x00000000`
+        : `scale=${STICKER_SIZE}:${STICKER_SIZE}:flags=lanczos`
+
+    const vf = ['format=rgba', scale, `fps=${preset.fps}`].join(',')
 
     return new Promise((resolve, reject) => {
       ffmpeg(inputPath)

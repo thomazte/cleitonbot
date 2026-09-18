@@ -123,6 +123,57 @@ async function assertStretchedSquare(sticker, label, tolerance) {
 }
 
 /**
+ * @param {Buffer} sticker
+ * @param {string} label
+ * @param {'wide' | 'tall'} orientation
+ */
+async function assertContainedSquare(sticker, label, orientation) {
+  const corner = await sample(sticker, 8, 8)
+  if (corner.width !== 512 || corner.height !== 512) {
+    throw new Error(`${label}: saiu ${corner.width}×${corner.height}, esperado 512×512.`)
+  }
+
+  if (orientation === 'wide') {
+    const topPad = await sample(sticker, 256, 8)
+    const bottomPad = await sample(sticker, 256, 503)
+    const leftEdge = await sample(sticker, 8, 256)
+    const rightEdge = await sample(sticker, 503, 256)
+
+    if (topPad.a >= 200 || bottomPad.a >= 200) {
+      throw new Error(`${label}: esperava barras transparentes em cima/baixo.`)
+    }
+    if (leftEdge.a < 200 || rightEdge.a < 200) {
+      throw new Error(`${label}: as laterais deveriam ter mídia opaca.`)
+    }
+    if (!matchesColor(leftEdge, COLORS.tl, 50) && !matchesColor(leftEdge, COLORS.bl, 50)) {
+      throw new Error(`${label}: borda esquerda não bate com a cor esperada.`)
+    }
+    if (!matchesColor(rightEdge, COLORS.tr, 50) && !matchesColor(rightEdge, COLORS.br, 50)) {
+      throw new Error(`${label}: borda direita não bate com a cor esperada.`)
+    }
+    return
+  }
+
+  const leftPad = await sample(sticker, 8, 256)
+  const rightPad = await sample(sticker, 503, 256)
+  const topEdge = await sample(sticker, 256, 8)
+  const bottomEdge = await sample(sticker, 256, 503)
+
+  if (leftPad.a >= 200 || rightPad.a >= 200) {
+    throw new Error(`${label}: esperava barras transparentes nas laterais.`)
+  }
+  if (topEdge.a < 200 || bottomEdge.a < 200) {
+    throw new Error(`${label}: o topo/base deveriam ter mídia opaca.`)
+  }
+  if (!matchesColor(topEdge, COLORS.tl, 50) && !matchesColor(topEdge, COLORS.tr, 50)) {
+    throw new Error(`${label}: topo não bate com a cor esperada.`)
+  }
+  if (!matchesColor(bottomEdge, COLORS.bl, 50) && !matchesColor(bottomEdge, COLORS.br, 50)) {
+    throw new Error(`${label}: base não bate com a cor esperada.`)
+  }
+}
+
+/**
  * @param {string} ffmpegPath
  * @param {string} outputPath
  */
@@ -143,7 +194,7 @@ async function writeQuadrantVideo(ffmpegPath, outputPath) {
 
 async function main() {
   const where = `${os.hostname()} / ${process.platform}`
-  console.log(`validando esticamento quadrado em ${where}`)
+  console.log(`validando modos fill/contain em ${where}`)
 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cleiton-square-'))
   const service = new StickerService(tempDir)
@@ -152,21 +203,34 @@ async function main() {
     const wide = await quadrantPng(800, 200)
     const tall = await quadrantPng(200, 800)
 
-    const wideSticker = await service.fromImage(wide, META)
+    const wideSticker = await service.fromImage(wide, META, { fit: 'fill' })
     await assertStretchedSquare(wideSticker, 'imagem horizontal 800×200', 40)
     console.log('ok  imagem horizontal esticada para 512×512')
 
-    const tallSticker = await service.fromImage(tall, META)
+    const tallSticker = await service.fromImage(tall, META, { fit: 'fill' })
     await assertStretchedSquare(tallSticker, 'imagem vertical 200×800', 40)
     console.log('ok  imagem vertical esticada para 512×512')
+
+    const wideContain = await service.fromImage(wide, META, { fit: 'contain' })
+    await assertContainedSquare(wideContain, 'imagem horizontal contain 800×200', 'wide')
+    console.log('ok  imagem horizontal com proporção original')
+
+    const tallContain = await service.fromImage(tall, META, { fit: 'contain' })
+    await assertContainedSquare(tallContain, 'imagem vertical contain 200×800', 'tall')
+    console.log('ok  imagem vertical com proporção original')
 
     const { ffmpegPath } = resolveFfmpegPaths()
     const videoPath = path.join(tempDir, 'quadrants.mp4')
     await writeQuadrantVideo(ffmpegPath, videoPath)
     const videoBuffer = await fs.readFile(videoPath)
-    const videoSticker = await service.fromVideo(videoBuffer, '.mp4', META)
+
+    const videoSticker = await service.fromVideo(videoBuffer, '.mp4', META, { fit: 'fill' })
     await assertStretchedSquare(videoSticker, 'vídeo 800×200', 70)
     console.log('ok  vídeo esticado para 512×512')
+
+    const videoContain = await service.fromVideo(videoBuffer, '.mp4', META, { fit: 'contain' })
+    await assertContainedSquare(videoContain, 'vídeo contain 800×200', 'wide')
+    console.log('ok  vídeo com proporção original')
 
     console.log(`passou  ${where}`)
   } finally {

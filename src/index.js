@@ -138,7 +138,9 @@ async function startBot() {
 
       if (connection === 'open') {
         logger.info('Conectado ao WhatsApp')
-        console.log('\nCleiton Bot online. Comandos: !s | !fig | !sticker | s | !menu\n')
+        console.log(
+          '\nCleiton Bot online. Comandos: !s (esticada) | !so (proporção) | !fig | !sticker | !menu\n'
+        )
       }
 
       if (connection === 'close') {

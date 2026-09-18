@@ -2,15 +2,19 @@ import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import pino from 'pino'
 import { StickerService } from '../services/stickerService.js'
 
-const TRIGGER_RE = /^(?:!s(?:ticker)?|!fig|s)(?:\s+([\s\S]+))?$/i
+/** Estica a mídia até preencher 512×512 (achatada). */
+const STRETCH_RE = /^(?:!s(?:ticker)?|!fig|s)(?:\s+([\s\S]+))?$/i
+/** Mantém a proporção original, com barras transparentes. */
+const CONTAIN_RE = /^(?:!so(?:riginal)?|!prop)(?:\s+([\s\S]+))?$/i
 const HELP_RE = /^!(?:menu|ajuda)$/i
 
 const HELP_TEXT =
   '*Como criar figurinhas*\n' +
-  '1. Envie uma imagem/GIF/vídeo com legenda `!s` (ou responda a uma mídia com `!s`)\n' +
-  '2. Opcional: `!s Nome do Pacote | Autor`\n' +
-  '3. A figurinha estica a mídia até ficar quadrada (512×512)\n' +
-  '4. Vídeos: até 30s (a figurinha usa ~4,5s)'
+  '1. Envie uma imagem/GIF/vídeo com a legenda do comando (ou responda a uma mídia)\n' +
+  '2. `!s` — estica até ficar quadrada (achatada)\n' +
+  '3. `!so` — mantém a proporção original\n' +
+  '4. Opcional: `!s Nome do Pacote | Autor` (vale também para `!so`)\n' +
+  '5. Vídeos: até 30s (a figurinha usa ~4,5s)'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +
@@ -88,7 +92,10 @@ export function createMessageHandler(sock, options) {
       return
     }
 
-    const match = trimmed.match(TRIGGER_RE)
+    // `!so` antes de `!s` para não confundir os gatilhos
+    const containMatch = trimmed.match(CONTAIN_RE)
+    const stretchMatch = containMatch ? null : trimmed.match(STRETCH_RE)
+    const match = containMatch || stretchMatch
     if (!match) {
       // Não responde às próprias mensagens do número do bot
       if (msg.key.fromMe) return
@@ -113,11 +120,13 @@ export function createMessageHandler(sock, options) {
       return
     }
 
+    const fit = containMatch ? 'contain' : 'fill'
     const meta = parseMeta(match[1], defaultMeta)
     const mediaInfo = resolveMedia(msg, content)
+    const trigger = trimmed.split(/\s+/)[0]
 
     console.log(
-      `[comando] ${trimmed.split(/\s+/)[0]} | tipo=${mediaInfo?.kind || 'sem-mídia'} | de=${jid} | fromMe=${Boolean(msg.key.fromMe)}`
+      `[comando] ${trigger} | fit=${fit} | tipo=${mediaInfo?.kind || 'sem-mídia'} | de=${jid} | fromMe=${Boolean(msg.key.fromMe)}`
     )
 
     if (!mediaInfo) {
@@ -125,7 +134,8 @@ export function createMessageHandler(sock, options) {
         jid,
         {
           text:
-            'Envie uma *imagem*, *GIF* ou *vídeo* com a legenda `!s`, ou *responda* a uma mídia com `!s`.',
+            'Envie uma *imagem*, *GIF* ou *vídeo* com a legenda `!s` ou `!so`, ou *responda* a uma mídia com o comando.\n' +
+            '`!s` = esticada · `!so` = proporção original',
         },
         { quoted: msg }
       )
@@ -150,13 +160,21 @@ export function createMessageHandler(sock, options) {
         throw new Error('Não consegui baixar a mídia. Tente reenviar.')
       }
 
-      console.log(`[sticker] convertendo (${mediaInfo.kind}, ${buffer.length} bytes)...`)
+      console.log(
+        `[sticker] convertendo (${mediaInfo.kind}, fit=${fit}, ${buffer.length} bytes)...`
+      )
 
+      const convertOptions = { fit }
       let stickerBuffer
       if (mediaInfo.kind === 'image') {
-        stickerBuffer = await stickerService.fromImage(buffer, meta)
+        stickerBuffer = await stickerService.fromImage(buffer, meta, convertOptions)
       } else {
-        stickerBuffer = await stickerService.fromVideo(buffer, mediaInfo.ext, meta)
+        stickerBuffer = await stickerService.fromVideo(
+          buffer,
+          mediaInfo.ext,
+          meta,
+          convertOptions
+        )
       }
 
       await sock.sendMessage(jid, { sticker: stickerBuffer }, { quoted: msg })

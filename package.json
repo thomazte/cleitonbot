@@ -1,7 +1,7 @@
 {
   "name": "cleiton-bot",
   "version": "1.0.0",
-  "description": "Cleiton Bot — figurinhas estáticas e animadas no WhatsApp",
+  "description": "Cleiton Bot — figurinhas estáticas e animadas no WhatsApp (esticada ou proporção original)",
   "type": "module",
   "main": "src/index.js",
   "scripts": {

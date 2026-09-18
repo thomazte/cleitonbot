@@ -8,13 +8,15 @@ Qualquer texto que **não** seja um comando reconhecido dispara uma orientação
 
 | Detalhe | Comportamento |
 |---------|----------------|
-| Gatilho | Texto livre (ex.: `oi`, `olá`) que não casa com `!s` / `!menu` / etc. |
+| Gatilho | Texto livre (ex.: `oi`, `olá`) que não casa com `!s` / `!so` / `!menu` / etc. |
 | Resposta | `WELCOME_TEXT` — apresenta o bot e indica `!ajuda` |
 | Cooldown | 30 minutos por chat (evita spam se o usuário continuar falando) |
 | Exceções | Mensagens `fromMe` (do próprio número do bot) são ignoradas |
 | Código | `src/handlers/messageHandler.js` (`WELCOME_TEXT`, `welcomeSentAt`) |
 
 ## Gatilhos de figurinha
+
+### Esticada (achatada)
 
 | Padrão aceito | Exemplo |
 |---------------|---------|
@@ -23,14 +25,29 @@ Qualquer texto que **não** seja um comando reconhecido dispara uma orientação
 | `!fig` | `!fig` |
 | `s` | `s` (sem `!`) |
 
-Regex de referência (simplificada): `^(?:!s(?:ticker)?|!fig|s)(?:\s+...)?$` (case-insensitive).
+Regex: `^(?:!s(?:ticker)?|!fig|s)(?:\s+...)?$` (case-insensitive).
+
+Comportamento: a mídia é **esticada** até preencher 512×512 (`fit: fill`). Sem barras transparentes.
+
+### Proporção original
+
+| Padrão aceito | Exemplo |
+|---------------|---------|
+| `!so` | `!so` |
+| `!soriginal` | `!soriginal` |
+| `!prop` | `!prop` |
+
+Regex: `^(?:!so(?:riginal)?|!prop)(?:\s+...)?$` (case-insensitive).
+
+Comportamento: a mídia é redimensionada **mantendo a proporção** dentro de 512×512 (`fit: contain`). O restante fica transparente.
 
 ### Metadados opcionais
 
-Após o comando, o usuário pode informar pacote e autor separados por `|`:
+Após qualquer comando de figurinha, o usuário pode informar pacote e autor separados por `|`:
 
 ```text
 !s Nome do Pacote | Autor
+!so Nome do Pacote | Autor
 ```
 
 | Entrada | Resultado |
@@ -48,7 +65,7 @@ Tipos reconhecidos: imagem, vídeo, GIF (via vídeo/documento), sticker estátic
 
 ### Formato da figurinha
 
-A mídia é esticada até preencher 512×512. A proporção original não é mantida: não há barras transparentes e os cantos da mídia original entram na figurinha.
+O canvas final é sempre 512×512 (exigência do WhatsApp). O modo define só o encaixe da mídia nesse quadrado.
 
 ## Ajuda
 
@@ -64,7 +81,7 @@ O conteúdo da ajuda é definido em `src/handlers/messageHandler.js` (`HELP_TEXT
 | Situação | Comportamento típico |
 |----------|----------------------|
 | Texto sem comando | Boas-vindas + pedido para usar `!ajuda` (com cooldown) |
-| Comando sem mídia | Orienta a enviar/responder uma mídia com `!s` |
+| Comando sem mídia | Orienta a enviar/responder uma mídia com `!s` ou `!so` |
 | Vídeo > 30 s | Rejeição com mensagem clara |
 | Falha de download/conversão | Mensagem `⚠️` com motivo resumido |
 | FFmpeg ausente | Conversão animada pode falhar; estáticas (Sharp) podem seguir |
