@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
@@ -30,9 +31,72 @@ const STICKER_AUTHOR = process.env.STICKER_AUTHOR || 'Cleiton'
 const logger = pino({ level: LOG_LEVEL })
 const baileysLogger = pino({ level: 'silent' })
 
+/** Queda temporária: espera crescente, no máximo 5 minutos. */
+const RECONNECT_DELAYS_MS = [5_000, 15_000, 30_000, 60_000, 120_000, 300_000]
+
 /** @type {import('@whiskeysockets/baileys').WASocket | null} */
 let sock = null
 let isRestarting = false
+let generation = 0
+let reconnectAttempt = 0
+/** @type {ReturnType<typeof setTimeout> | null} */
+let reconnectTimer = null
+/** Sessão desvinculada ou proibida: não abre outro socket. */
+let sessionStopped = false
+/** Segura o event loop para o PM2 não reiniciar em loop. */
+let keepAlive = null
+
+function holdProcessOpen() {
+  if (keepAlive) return
+  keepAlive = setInterval(() => {}, 60 * 60 * 1000)
+}
+
+function clearReconnectTimer() {
+  if (!reconnectTimer) return
+  clearTimeout(reconnectTimer)
+  reconnectTimer = null
+}
+
+function scheduleReconnect() {
+  if (sessionStopped || reconnectTimer) return
+  const delay = RECONNECT_DELAYS_MS[Math.min(reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)]
+  reconnectAttempt += 1
+  console.log(`Conexão caiu. Nova tentativa em ${Math.round(delay / 1000)}s (tentativa ${reconnectAttempt}).`)
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null
+    startBot().catch((err) => logger.error({ err }, 'Falha ao reconectar'))
+  }, delay)
+}
+
+/**
+ * @param {number | undefined} statusCode
+ */
+function isTerminalDisconnect(statusCode) {
+  return statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.forbidden || statusCode === 403
+}
+
+/**
+ * @param {string} reason
+ */
+async function stopSession(reason) {
+  if (sessionStopped) {
+    holdProcessOpen()
+    return
+  }
+  sessionStopped = true
+  clearReconnectTimer()
+  console.log(reason)
+  try {
+    await rm(AUTH_DIR, { recursive: true, force: true })
+  } catch (err) {
+    logger.error({ err }, 'Falha ao limpar sessão')
+  }
+  holdProcessOpen()
+  console.log(
+    'Cleiton parado. Sem nova conexão automática.\n' +
+      'Quando for parear de novo, reinicie o processo e escaneie o QR uma única vez.'
+  )
+}
 
 process.on('uncaughtException', (err) => {
   logger.error({ err }, 'uncaughtException — processo continua ativo')
@@ -74,8 +138,10 @@ function printQrHelp() {
 }
 
 async function startBot() {
-  if (isRestarting) return
+  if (isRestarting || sessionStopped) return
   isRestarting = true
+  const gen = ++generation
+  clearReconnectTimer()
 
   try {
     if (sock) {
@@ -124,11 +190,16 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds)
 
     sock.ev.on('connection.update', (update) => {
+      if (gen !== generation) return
       const { connection, lastDisconnect, qr } = update
 
       if (qr) {
         printQrHelp()
         qrcode.generate(qr, { small: true })
+        const qrFile = path.join(TEMP_DIR, 'qr-payload.txt')
+        writeFile(qrFile, qr, { mode: 0o600 }).catch((err) => {
+          logger.warn({ err }, 'Não gravei o payload do QR')
+        })
         console.log('Aguardando leitura do QR...\n')
       }
 
@@ -137,6 +208,8 @@ async function startBot() {
       }
 
       if (connection === 'open') {
+        reconnectAttempt = 0
+        sessionStopped = false
         logger.info('Conectado ao WhatsApp')
         console.log(
           '\nCleiton Bot online. Comandos: !s (esticada) | !so (proporção) | !fig | !sticker | !menu\n'
@@ -145,20 +218,23 @@ async function startBot() {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+        const terminal = isTerminalDisconnect(statusCode)
 
-        logger.warn({ statusCode, shouldReconnect }, 'Conexão encerrada')
+        logger.warn(
+          { statusCode, shouldReconnect: !terminal, errMsg: lastDisconnect?.error?.message },
+          'Conexão encerrada'
+        )
 
-        if (shouldReconnect) {
-          console.log('Reconectando em 3s...')
-          setTimeout(() => {
-            startBot().catch((err) => logger.error({ err }, 'Falha ao reconectar'))
-          }, 3000)
-        } else {
-          console.log(
-            'Sessão encerrada (logged out). Apague a pasta auth_info_baileys e rode npm start de novo.'
-          )
+        if (!terminal) {
+          scheduleReconnect()
+          return
         }
+
+        const reason =
+          statusCode === DisconnectReason.forbidden || statusCode === 403
+            ? 'WhatsApp recusou a sessão (403). Cleiton não vai tentar de novo.'
+            : 'Sessão desvinculada pelo WhatsApp (401). Cleiton não vai tentar de novo.'
+        stopSession(reason).catch((err) => logger.error({ err }, 'Falha ao parar a sessão'))
       }
     })
 
