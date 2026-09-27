@@ -8,15 +8,14 @@
 | **ES Modules** | `"type": "module"` | Import/export nativos, sem CommonJS |
 | **dotenv** | dependência | Carrega variáveis de ambiente a partir de `.env` |
 
-## WhatsApp e sessão
+## WhatsApp
 
 | Tecnologia | Papel |
 |------------|--------|
-| **@whiskeysockets/baileys** | Cliente WhatsApp Multi-Device (Web protocol), eventos, download de mídia, envio de stickers |
-| **qrcode-terminal** | Exibe QR de pareamento no terminal na primeira autenticação / logout |
-| **useMultiFileAuthState** | Persiste credenciais e chaves Signal em arquivos sob `auth_info_baileys/` |
-
-Baileys não usa a API oficial do WhatsApp Business Cloud. A operação depende de sessão válida (aparelho conectado) e das políticas da plataforma.
+| **WhatsApp Cloud API** (Graph `v23.0`) | Caminho de produção: recebe mensagens no webhook e envia texto ou figurinha |
+| **Node `http`** | Servidor do webhook em `127.0.0.1:3000`; o Nginx publica o HTTPS |
+| **@whiskeysockets/baileys** | Cliente antigo, por QR. O processo fica parado para não disputar o número com a API oficial |
+| **qrcode-terminal** | QR de pareamento do Baileys. O QR do README é só o link de contato (`wa.me`) |
 
 ## Processamento de mídia
 
@@ -39,10 +38,11 @@ Baileys não usa a API oficial do WhatsApp Business Cloud. A operação depende 
 | Parâmetro | Valor |
 |-----------|--------|
 | Tamanho do canvas | 512 × 512 px |
-| Alvo figurinha estática | ≤ ~200 KB |
-| Alvo figurinha animada | ≤ ~500 KB |
+| Alvo figurinha estática (serviço) | ≤ ~200 KB |
+| Alvo figurinha estática (Cloud API) | ≤ 100 KB (recompressão extra se passar) |
+| Alvo figurinha animada | ≤ 500 KB |
 | Duração máxima do vídeo de entrada | 30 s |
-| Trecho usado na figurinha animada | ~4,5 s |
+| Trecho usado na figurinha animada | ~10 s |
 
 ## Observabilidade
 
@@ -50,14 +50,15 @@ Baileys não usa a API oficial do WhatsApp Business Cloud. A operação depende 
 |------------|--------|
 | **pino** | Logger estruturado (níveis configuráveis via `LOG_LEVEL`) |
 
-Logs do Baileys interno costumam ser silenciados para reduzir ruído; o processo da aplicação registra eventos de comando, falhas de conversão e estado de conexão.
+O webhook escreve no stdout do PM2 quem chamou, o comando e o status de entrega. O logger Pino fica no processo Baileys.
 
 ## Operação em produção
 
 | Tecnologia | Papel |
 |------------|--------|
-| **PM2** | Process manager (reinício, logs, persistência após reboot) |
-| **Linux (Ubuntu)** | Ambiente típico de VPS (Hetzner Cloud ou equivalente) |
+| **PM2** | Processo `cleiton-webhook` (produção). `cleiton-bot` é o Baileys e permanece parado |
+| **Nginx + Let's Encrypt** | HTTPS público do webhook |
+| **Linux (Ubuntu)** | VPS (Hetzner Cloud ou equivalente) |
 
 ## Dependências diretas (`package.json`)
 
@@ -75,8 +76,8 @@ Dependências de sistema **obrigatórias** fora do npm: **FFmpeg** e **ffprobe**
 
 ## Decisões técnicas relevantes
 
-1. **Baileys em vez de Cloud API oficial** — menor atrito para bot pessoal/grupo; exige gestão de sessão e aceite do risco de instabilidade/banimento da conta.
-2. **Sharp + FFmpeg** — Sharp cobre estáticas com qualidade e performance; FFmpeg cobre animação, onde o WhatsApp é sensível a fps, duração e tamanho.
-3. **Dois modos de fit** — `fill` para figurinha “achatada”; `contain` para respeitar a proporção original.
-4. **EXIF via webpmux** — permite que o app mostre pacote/autor customizados (`!s Pacote | Autor` / `!so Pacote | Autor`).
-5. **Arquivos multi-auth** — facilita backup/restauração da sessão e troca de número (apagando a pasta de auth).
+1. **Cloud API em produção** — o número fica dentro das regras da Meta. A resposta a quem chama o bot não exige pagamento nem verificação da empresa. O Baileys permanece no código, desligado.
+2. **Sharp + FFmpeg** — Sharp cobre estáticas; FFmpeg cobre a animação, em que o WhatsApp limita fps, duração (10 s) e tamanho (500 KB).
+3. **Dois modos de fit** — `fill` para figurinha esticada; `contain` para a proporção original.
+4. **EXIF via webpmux** — o app mostra pacote e autor (`!s Pacote | Autor` / `!so Pacote | Autor`).
+5. **Só conversa individual** — a API oficial não entra em grupo comum do WhatsApp.

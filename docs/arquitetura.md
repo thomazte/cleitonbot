@@ -2,74 +2,86 @@
 
 ## Visão geral
 
-O Cleiton Bot é um cliente WhatsApp não oficial baseado em **Baileys**. Ele mantém uma sessão persistente (pasta de autenticação), recebe eventos de mensagens, interpreta comandos de texto e, quando há mídia associada, converte a mídia em figurinha WebP compatível com o WhatsApp.
+Em produção o Cleiton usa a **WhatsApp Cloud API**. A Meta entrega as mensagens num webhook HTTPS; o processo responde com texto ou figurinha na mesma conversa individual. O número não entra em grupos.
+
+O cliente **Baileys** (`src/index.js`) continua no repositório, mas fica parado no servidor. Subir esse processo de novo abre sessão por QR no mesmo número e entra em conflito com a API oficial.
 
 ```text
-WhatsApp  ←→  Baileys (socket)  →  messageHandler  →  StickerService  →  figurinha
-                      ↑
-               auth_info_baileys
-               (sessão Multi-Device)
+WhatsApp  →  Meta Cloud API  →  HTTPS /webhook  →  handleMessage  →  StickerService  →  figurinha
+                                      ↑
+                               127.0.0.1:3000
+                               (atrás do Nginx)
 ```
 
 ## Componentes
 
 | Módulo | Responsabilidade |
 |--------|------------------|
-| `src/index.js` | Bootstrap, socket Baileys, QR no terminal, reconexão, integração com PM2/processo |
-| `src/handlers/messageHandler.js` | Parsing de comandos, boas-vindas (texto sem comando), resolução de mídia, download e resposta |
+| `src/webhook.js` | Servidor HTTP: verificação do webhook, `/health` e recebimento das mensagens |
+| `src/cloud/handleMessage.js` | Comandos, boas-vindas e conversão na API oficial |
+| `src/cloud/client.js` | Graph API: texto, download de mídia, upload e envio de figurinha |
 | `src/services/stickerService.js` | Conversão imagem/vídeo → WebP + metadados EXIF (pacote/autor) |
 | `src/utils/fileCleaner.js` | Diretórios temporários e limpeza de arquivos intermediários |
 | `src/utils/ffmpegPaths.js` | Resolução de caminhos do FFmpeg/ffprobe (PATH ou `.env`) |
+| `src/index.js` | Cliente Baileys (legado). Não usar com o número que está na Cloud API |
+| `src/handlers/messageHandler.js` | Comandos do caminho Baileys, inclusive reply a mídia citada |
 
-## Fluxo de mensagens
+## Fluxo de mensagens (Cloud API)
 
-1. Chega texto ou mídia via `messages.upsert` (Baileys).
-2. Se for `!menu` / `!ajuda` → envia `HELP_TEXT`.
-3. Se for texto sem comando → envia boas-vindas (`WELCOME_TEXT`) com cooldown de 30 min por chat.
-4. Se for comando de figurinha (`!s` / `!so` / etc.) → segue o fluxo abaixo.
+1. A Meta faz `POST /webhook`. O servidor responde `200` e só então trata o corpo.
+2. Se for `!menu` / `!ajuda` → envia o texto de ajuda.
+3. Se for texto sem comando → envia a boas-vindas pedindo `!ajuda`.
+4. Se for `!s` / `!so` (e variantes) na **legenda** da mídia → segue o fluxo da figurinha.
+5. Status de entrega (`sent`, `read`, `failed`) só é registrado no log.
+
+Responder (reply) a uma mídia antiga não dispara figurinha neste caminho. O comando precisa estar na legenda da imagem, do GIF ou do vídeo.
 
 ## Fluxo de uma figurinha
 
-1. Usuário envia mídia com legenda `!s` ou `!so` (ou responde a uma mídia com o comando).
-2. O handler valida o comando, define o modo (`fill` ou `contain`) e localiza a mídia (mensagem atual ou citada).
-3. A mídia é baixada via `downloadMediaMessage` (Baileys).
-4. `StickerService` gera WebP:
-   - **Imagem:** Sharp → 512×512 (`fill` estica; `contain` preserva proporção + transparência).
-   - **GIF/vídeo:** FFmpeg → 512×512 no mesmo modo, clip ~4,5 s, fps limitado, tamanho alvo.
-5. Metadados de pacote/autor são injetados com `node-webpmux`.
-6. O bot responde com a figurinha na mesma conversa (mensagem citada).
+1. O usuário envia a mídia com a legenda `!s` ou `!so`.
+2. O handler define o modo (`fill` ou `contain`) e baixa a mídia pela Graph API.
+3. `StickerService` gera WebP:
+   - **Imagem:** Sharp → 512×512 (`fill` estica; `contain` preserva proporção + transparência). Se passar de 100 KB, a Cloud API comprime de novo.
+   - **GIF/vídeo:** FFmpeg → 512×512 no mesmo modo, clip ~10 s, fps limitado, tamanho alvo de 500 KB.
+4. Metadados de pacote/autor são injetados com `node-webpmux`.
+5. O WebP é enviado como figurinha para quem chamou.
+
+## Grupos
+
+A Cloud API não coloca o número num grupo comum do WhatsApp. A API de grupos da Meta cria grupos novos, só para conta comercial oficial, com no máximo 8 pessoas e entrada por link. Não recupera grupos antigos.
 
 ## Persistência
 
 | Caminho | Uso |
 |---------|-----|
-| `auth_info_baileys/` | Credenciais e chaves da sessão Multi-Device (não versionar) |
+| `.env` | Token, Phone Number ID, segredo do webhook, pacote, autor, logs |
 | `temp/` | Arquivos intermediários de conversão (limpos após o uso) |
-| `.env` | Configuração local (pacote padrão, autor, logs, paths) |
+| `auth_info_baileys/` | Sessão antiga do Baileys (não versionar; não religar em produção) |
 
 ## Princípios de desenho
 
-- **Separação de camadas:** transporte (Baileys) ≠ regras de comando ≠ conversão de mídia.
-- **Idempotência parcial:** IDs de mensagem processados são lembrados em memória para evitar figurinha duplicada em eventos `notify`/`append`.
-- **Resiliência:** reconexão automática no socket; sessão invalidada exige novo pareamento por QR.
-- **Compatibilidade WhatsApp:** canvas 512×512, limites de tamanho e duração alinhados ao que o app aceita bem.
+- **Transporte separado da mídia:** o webhook e a Graph API não conhecem FFmpeg; o `StickerService` não conhece a Meta.
+- **Resposta dentro da janela de atendimento:** quem manda mensagem primeiro recebe a resposta. Isso não exige pagamento nem verificação da empresa.
+- **Compatibilidade WhatsApp:** canvas 512×512, estática até 100 KB na API oficial, animada até 500 KB e no máximo 10 s.
 
 ## Estrutura do repositório
 
 ```text
 cleitonbot/
 ├── src/
-│   ├── index.js
+│   ├── webhook.js          # entrada em produção
+│   ├── cloud/
+│   ├── index.js            # Baileys (legado)
 │   ├── handlers/
 │   ├── services/
 │   └── utils/
-├── scripts/              # Validação dos modos fill/contain (local + VPS)
-├── docs/                 # Documentação técnica
-├── docs/assets/          # Assets públicos (ex.: QR do contato)
-├── temp/                 # Runtime
-├── auth_info_baileys/    # Runtime (sessão)
+├── scripts/                # Validação dos modos fill/contain (local + VPS)
+├── docs/
+├── assets/                 # QR de contato (wa.me), não é QR de pareamento
+├── temp/                   # Runtime
+├── auth_info_baileys/      # Runtime legado (sessão Baileys)
 ├── .env.example
 ├── package.json
 ├── LICENSE
-└── README.md             # Guia do usuário final
+└── README.md
 ```

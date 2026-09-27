@@ -69,9 +69,13 @@ function scheduleReconnect() {
 }
 
 /**
+ * 401 com a mensagem "conflict" é troca de stream, não logout.
+ * Apagar a sessão nesse caso derruba o bot à toa.
  * @param {number | undefined} statusCode
+ * @param {string | undefined} errMsg
  */
-function isTerminalDisconnect(statusCode) {
+function isTerminalDisconnect(statusCode, errMsg) {
+  if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('conflict')) return false
   return statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.forbidden || statusCode === 403
 }
 
@@ -218,7 +222,8 @@ async function startBot() {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode
-        const terminal = isTerminalDisconnect(statusCode)
+        const errMsg = lastDisconnect?.error?.message
+        const terminal = isTerminalDisconnect(statusCode, errMsg)
 
         logger.warn(
           { statusCode, shouldReconnect: !terminal, errMsg: lastDisconnect?.error?.message },

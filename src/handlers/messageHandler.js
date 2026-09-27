@@ -14,7 +14,7 @@ const HELP_TEXT =
   '2. `!s` — estica até ficar quadrada (achatada)\n' +
   '3. `!so` — mantém a proporção original\n' +
   '4. Opcional: `!s Nome do Pacote | Autor` (vale também para `!so`)\n' +
-  '5. Vídeos: até 30s (a figurinha usa ~4,5s)'
+  '5. Vídeos: até 30s (a figurinha usa cerca de 10s)'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +

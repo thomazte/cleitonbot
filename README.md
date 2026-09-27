@@ -25,7 +25,6 @@ Escaneie o QR Code abaixo com a câmera do celular (ou pelo WhatsApp) para abrir
 2. Se mandar qualquer texto sem comando (ex.: `oi`), o bot responde pedindo para usar `!ajuda`.
 3. Digite `!ajuda` (ou `!menu`) para ver as instruções.
 4. Envie uma **imagem**, **GIF** ou **vídeo** com a legenda `!s` ou `!so`.
-5. Ou responda (reply) a uma mídia já enviada com o comando.
 
 Opcional — personalize o pacote e o autor:
 
@@ -36,10 +35,13 @@ Opcional — personalize o pacote e o autor:
 
 ### Limites
 
-- Vídeos de até **30 segundos** (a figurinha usa cerca de **4,5 s**)
+- Vídeos de até **30 segundos** (a figurinha usa cerca de **10 s**)
 - Figurinhas estáticas e animadas no formato do WhatsApp (512×512)
 - `!s` **estica** a mídia até preencher o quadrado
 - `!so` **mantém** a proporção original (o restante fica transparente)
+- Só conversa individual. O Cleiton não entra em grupos
+
+Link direto: [https://wa.me/556284818765](https://wa.me/556284818765)
 
 ---
 

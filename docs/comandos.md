@@ -10,9 +10,9 @@ Qualquer texto que **não** seja um comando reconhecido dispara uma orientação
 |---------|----------------|
 | Gatilho | Texto livre (ex.: `oi`, `olá`) que não casa com `!s` / `!so` / `!menu` / etc. |
 | Resposta | `WELCOME_TEXT` — apresenta o bot e indica `!ajuda` |
-| Cooldown | 30 minutos por chat (evita spam se o usuário continuar falando) |
-| Exceções | Mensagens `fromMe` (do próprio número do bot) são ignoradas |
-| Código | `src/handlers/messageHandler.js` (`WELCOME_TEXT`, `welcomeSentAt`) |
+| Cooldown | Na Cloud API, não há cooldown. No Baileys, 30 minutos por chat |
+| Exceções | No Baileys, mensagens `fromMe` são ignoradas |
+| Código | Cloud API: `src/cloud/handleMessage.js`. Baileys: `src/handlers/messageHandler.js` |
 
 ## Gatilhos de figurinha
 
@@ -58,10 +58,11 @@ Após qualquer comando de figurinha, o usuário pode informar pacote e autor sep
 
 ### Fontes de mídia
 
-1. **Legenda:** imagem/GIF/vídeo enviados com o comando na caption.
-2. **Reply:** mensagem de texto com o comando respondendo a uma mídia anterior.
+Na **Cloud API** a figurinha sai da mídia cuja legenda é o comando (`!s` ou `!so`). Reply a uma mensagem antiga não é lido.
 
-Tipos reconhecidos: imagem, vídeo, GIF (via vídeo/documento), sticker estático (reprocessável como imagem) e sticker animado (tratado como vídeo/WebP).
+No **Baileys** também vale responder a uma mídia já enviada com o comando no texto.
+
+Tipos reconhecidos na Cloud API: imagem, vídeo e documento (GIF). O Baileys ainda aceita sticker estático (como imagem) e sticker animado (como vídeo).
 
 ### Formato da figurinha
 
@@ -74,14 +75,18 @@ O canvas final é sempre 512×512 (exigência do WhatsApp). O modo define só o 
 | `!menu` | Texto de ajuda (`HELP_TEXT`) |
 | `!ajuda` | Idem |
 
-O conteúdo da ajuda é definido em `src/handlers/messageHandler.js` (`HELP_TEXT`).
+O texto de ajuda da produção está em `src/cloud/handleMessage.js` (`HELP_TEXT`). O do Baileys está em `src/handlers/messageHandler.js`.
+
+## Grupos
+
+A Cloud API não atende grupo. Quem quiser figurinha abre uma conversa individual com o número (QR ou `https://wa.me/556284818765`).
 
 ## Erros comuns (resposta ao usuário)
 
 | Situação | Comportamento típico |
 |----------|----------------------|
-| Texto sem comando | Boas-vindas + pedido para usar `!ajuda` (com cooldown) |
-| Comando sem mídia | Orienta a enviar/responder uma mídia com `!s` ou `!so` |
+| Texto sem comando | Boas-vindas pedindo `!ajuda` |
+| Comando sem mídia | Pede uma imagem, GIF ou vídeo com a legenda `!s` ou `!so` |
 | Vídeo > 30 s | Rejeição com mensagem clara |
 | Falha de download/conversão | Mensagem `⚠️` com motivo resumido |
 | FFmpeg ausente | Conversão animada pode falhar; estáticas (Sharp) podem seguir |
@@ -90,6 +95,6 @@ O conteúdo da ajuda é definido em `src/handlers/messageHandler.js` (`HELP_TEXT
 
 Para novos comandos:
 
-1. Adicionar reconhecimento no `messageHandler.js`.
+1. Adicionar reconhecimento em `src/cloud/handleMessage.js` (produção) e, se o Baileys ainda for usado, em `src/handlers/messageHandler.js`.
 2. Documentar aqui o contrato (gatilho, parâmetros, efeitos colaterais).
 3. Evitar lógica de mídia no handler — preferir serviços em `src/services/`.

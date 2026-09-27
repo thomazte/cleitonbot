@@ -14,7 +14,7 @@ const STICKER_SIZE = 512
 const MAX_STATIC_BYTES = 200 * 1024
 const MAX_ANIMATED_BYTES = 500 * 1024
 const MAX_VIDEO_DURATION_SEC = 30
-const CLIP_DURATION_SEC = 4.5
+const CLIP_DURATION_SEC = 10
 
 /**
  * @typedef {object} StickerMeta
@@ -108,11 +108,11 @@ export class StickerService {
       }
 
       const presets = [
-        { fps: 14, quality: 55 },
         { fps: 12, quality: 45 },
-        { fps: 10, quality: 35 },
-        { fps: 10, quality: 25 },
-        { fps: 10, quality: 15 },
+        { fps: 10, quality: 32 },
+        { fps: 8, quality: 24 },
+        { fps: 6, quality: 18 },
+        { fps: 6, quality: 10 },
       ]
 
       let finalBuffer = null
