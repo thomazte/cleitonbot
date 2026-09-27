@@ -8,7 +8,7 @@ Escaneie o QR Code abaixo com a câmera do celular (ou pelo WhatsApp) para abrir
 
 ![QR Code para conversar com Cleiton no WhatsApp](./assets/cleiton-whatsapp-qr.png)
 
-wa.me/556284818765
+https://wa.me/556284818765
 
 ## Como usar
 
