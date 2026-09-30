@@ -43,8 +43,7 @@ Link de GIF usa o mesmo modo do comando (`!s` = `fill`, `!so` = `contain`). Um l
 | Alvo figurinha estática (serviço) | ≤ ~200 KB |
 | Alvo figurinha estática (Cloud API) | ≤ 100 KB (recompressão extra se passar) |
 | Alvo figurinha animada | ≤ 500 KB |
-| Duração máxima do vídeo de entrada | 30 s |
-| Trecho usado na figurinha animada | ~10 s |
+| Trecho usado na figurinha animada | primeiros ~10 s (vídeos mais longos não são recusados) |
 | Tamanho máximo do arquivo baixado por link | 15 MB |
 | Portas aceitas no link | 80 e 443 |
 

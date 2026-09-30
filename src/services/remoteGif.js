@@ -42,7 +42,7 @@ export function splitCommandArg(raw) {
 }
 
 /**
- * Mensagem que é só um link de GIF, Tenor ou Giphy.
+ * Mensagem que é só um link de GIF, Tenor, Giphy ou post do X.
  * @param {string} text
  * @returns {string|null}
  */
@@ -58,13 +58,19 @@ export function bareGifLink(text) {
  * @returns {Promise<{ buffer: Buffer, kind: 'video', ext: string }>}
  */
 export async function downloadRemoteGif(url) {
+  const directTweet = tweetRef(url)
+  if (directTweet) return downloadTweetMedia(directTweet)
+
   const target = rewriteKnownPage(url) || url
   let fetched = await fetchChecked(target, 0)
+  const landedTweet = tweetRef(fetched.finalUrl)
+  if (landedTweet) return downloadTweetMedia(landedTweet)
+
   if (isHtml(fetched.type, fetched.buffer)) {
     const embedded = extractEmbeddedMedia(fetched.finalUrl, fetched.buffer.toString('utf8'))
     if (!embedded) {
       throw new Error(
-        'Não achei um GIF nesse link. Use um arquivo .gif, um link do Tenor ou do Giphy.'
+        'Não achei um GIF nesse link. Use um arquivo .gif, um link do Tenor, do Giphy ou de um post do X.'
       )
     }
     fetched = await fetchChecked(embedded, 0)
@@ -75,7 +81,9 @@ export async function downloadRemoteGif(url) {
 
   const media = classifyMedia(fetched.type, fetched.buffer, fetched.finalUrl)
   if (!media) {
-    throw new Error('Esse link não é um GIF ou vídeo. Envie o arquivo direto, do Tenor ou do Giphy.')
+    throw new Error(
+      'Esse link não é um GIF ou vídeo. Envie o arquivo direto, do Tenor, do Giphy ou de um post do X.'
+    )
   }
   if (fetched.buffer.length === 0) {
     throw new Error('O link baixou um arquivo vazio.')
@@ -104,7 +112,150 @@ function looksLikeGifLink(url) {
   const host = hostnameOf(parsed)
   if (host === 'tenor.com' || host.endsWith('.tenor.com')) return true
   if (host === 'giphy.com' || host.endsWith('.giphy.com')) return true
+  if (tweetRef(url)) return true
   return MEDIA_EXT.test(parsed.pathname)
+}
+
+const TWEET_HOSTS = new Set([
+  'x.com',
+  'twitter.com',
+  'mobile.x.com',
+  'mobile.twitter.com',
+  'fxtwitter.com',
+  'vxtwitter.com',
+  'fixupx.com',
+  'fixvx.com',
+])
+
+/**
+ * Post público do X (ou de um espelho tipo fxtwitter). A página não traz o arquivo;
+ * o vídeo sai da API do FxTwitter.
+ * @param {string} raw
+ * @returns {{ id: string, mediaIndex: number }|null}
+ */
+function tweetRef(raw) {
+  let parsed
+  try {
+    parsed = new URL(raw)
+  } catch {
+    return null
+  }
+  const host = hostnameOf(parsed).replace(/^www\./, '')
+  if (!TWEET_HOSTS.has(host)) return null
+  const id = parsed.pathname.match(/\/status\/(\d+)/)
+  if (!id) return null
+  const video = parsed.pathname.match(/\/video\/(\d+)/)
+  const mediaIndex = video ? Number(video[1]) : 0
+  return { id: id[1], mediaIndex: Number.isFinite(mediaIndex) ? mediaIndex : 0 }
+}
+
+/**
+ * @param {{ id: string, mediaIndex: number }} ref
+ * @returns {Promise<{ buffer: Buffer, kind: 'video', ext: string }>}
+ */
+async function downloadTweetMedia(ref) {
+  const api = `https://api.fxtwitter.com/2/status/${ref.id}`
+  let fetched
+  try {
+    fetched = await fetchChecked(api, 0)
+  } catch (err) {
+    if (err instanceof Error && /HTTP 404/.test(err.message)) {
+      throw new Error('Não achei esse post do X. Confira se ele é público.')
+    }
+    throw err
+  }
+
+  let payload
+  try {
+    payload = JSON.parse(fetched.buffer.toString('utf8'))
+  } catch {
+    throw new Error('Não consegui ler esse post do X.')
+  }
+  if (!payload || payload.code !== 200) {
+    throw new Error('Não achei esse post do X. Confira se ele é público.')
+  }
+
+  const videos = listTweetVideos(payload.status?.media || payload.tweet?.media)
+  if (!videos.length) {
+    throw new Error('Esse post do X não tem vídeo nem GIF.')
+  }
+  const index = ref.mediaIndex >= 1 && ref.mediaIndex <= videos.length ? ref.mediaIndex - 1 : 0
+  const candidates = mp4Candidates(videos[index] || videos[0])
+  if (!candidates.length) {
+    throw new Error('Não achei o arquivo de vídeo nesse post do X.')
+  }
+
+  let tooBig = false
+  for (const mediaUrl of candidates) {
+    try {
+      const file = await fetchChecked(mediaUrl, 0)
+      if (isHtml(file.type, file.buffer) || file.buffer.length === 0) continue
+      const media = classifyMedia(file.type, file.buffer, file.finalUrl)
+      if (!media) continue
+      return { buffer: file.buffer, kind: 'video', ext: media.ext }
+    } catch (err) {
+      if (err instanceof Error && /grande demais/.test(err.message)) {
+        tooBig = true
+        continue
+      }
+      throw err
+    }
+  }
+  if (tooBig) throw new Error('Esse vídeo do X é grande demais. Envie um trecho menor.')
+  throw new Error('Não achei o arquivo de vídeo nesse post do X.')
+}
+
+/**
+ * @param {object|undefined} media
+ * @returns {object[]}
+ */
+function listTweetVideos(media) {
+  if (!media || typeof media !== 'object') return []
+  const lists = [media.videos, media.all].filter(Array.isArray)
+  const seen = new Set()
+  const videos = []
+  for (const list of lists) {
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue
+      if (item.type && item.type !== 'video' && item.type !== 'gif') continue
+      const key = String(item.id || item.url || '')
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      videos.push(item)
+    }
+  }
+  return videos
+}
+
+/**
+ * Variantes MP4 da maior para a menor. Pula as que, pelo bitrate, passam de 15 MB.
+ * @param {object} video
+ * @returns {string[]}
+ */
+function mp4Candidates(video) {
+  const formats = Array.isArray(video?.formats) ? video.formats : []
+  const ranked = formats
+    .filter((item) => item && item.url && (item.container === 'mp4' || /\.mp4(\?|$)/i.test(item.url)))
+    .map((item) => ({ url: String(item.url), bitrate: Number(item.bitrate) || 0 }))
+  if (!ranked.length && video?.url && /\.mp4(\?|$)/i.test(String(video.url))) {
+    ranked.push({ url: String(video.url), bitrate: 0 })
+  }
+  ranked.sort((a, b) => b.bitrate - a.bitrate)
+
+  const duration = Number(video?.duration) || 0
+  const fits = []
+  const oversized = []
+  const seen = new Set()
+  for (const item of ranked) {
+    if (seen.has(item.url)) continue
+    seen.add(item.url)
+    if (duration > 0 && item.bitrate > 0 && (item.bitrate / 8) * duration > MAX_MEDIA_BYTES) {
+      oversized.push(item.url)
+      continue
+    }
+    fits.push(item.url)
+  }
+  return fits.length ? fits : oversized.reverse()
 }
 
 /**

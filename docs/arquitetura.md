@@ -21,7 +21,7 @@ WhatsApp  →  Meta Cloud API  →  HTTPS /webhook  →  handleMessage  →  Sti
 | `src/cloud/handleMessage.js` | Comandos, boas-vindas e conversão na API oficial |
 | `src/cloud/client.js` | Graph API: texto, download de mídia, upload e envio de figurinha |
 | `src/services/stickerService.js` | Conversão imagem/vídeo → WebP + metadados EXIF (pacote/autor) |
-| `src/services/remoteGif.js` | Download de link de GIF (arquivo direto, Tenor ou Giphy) |
+| `src/services/remoteGif.js` | Download de link de GIF (arquivo direto, Tenor, Giphy ou post do X) |
 | `src/utils/fileCleaner.js` | Diretórios temporários e limpeza de arquivos intermediários |
 | `src/utils/ffmpegPaths.js` | Resolução de caminhos do FFmpeg/ffprobe (PATH ou `.env`) |
 | `src/index.js` | Cliente Baileys (legado). Não usar com o número que está na Cloud API |

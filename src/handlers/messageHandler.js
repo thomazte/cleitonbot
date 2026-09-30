@@ -12,11 +12,11 @@ const HELP_RE = /^!(?:menu|ajuda)$/i
 const HELP_TEXT =
   '*Como criar figurinhas*\n' +
   '1. Envie uma imagem/GIF/vídeo com a legenda do comando (ou responda a uma mídia)\n' +
-  '2. Ou mande o link: `!s https://link-do-gif`\n' +
+  '2. Ou mande o link: `!s https://link-do-gif` (Tenor, Giphy, post do X ou arquivo)\n' +
   '3. `!s` — estica até ficar quadrada (achatada)\n' +
   '4. `!so` — mantém a proporção original\n' +
   '5. Opcional: `!s Nome do Pacote | Autor` (vale também para `!so`)\n' +
-  '6. Vídeos: até 30s (a figurinha usa cerca de 10s)'
+  '6. Vídeos longos: a figurinha usa os primeiros 10s'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +

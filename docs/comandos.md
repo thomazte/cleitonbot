@@ -9,7 +9,7 @@ Qualquer texto que **não** seja um comando reconhecido nem um link de GIF dispa
 | Detalhe | Comportamento |
 |---------|----------------|
 | Gatilho | Texto livre (ex.: `oi`, `olá`) que não casa com `!s` / `!so` / `!menu` / etc. e não é um link de GIF |
-| Exceções | Link sozinho do Tenor, do Giphy ou de arquivo `.gif` / `.mp4` / `.webm` / `.webp` vira figurinha esticada (`!s`). No Baileys, mensagens `fromMe` são ignoradas |
+| Exceções | Link sozinho do Tenor, do Giphy, de um post do X com vídeo/GIF, ou de arquivo `.gif` / `.mp4` / `.webm` / `.webp` vira figurinha esticada (`!s`). No Baileys, mensagens `fromMe` são ignoradas |
 | Resposta | `WELCOME_TEXT` — apresenta o bot e indica `!ajuda` |
 | Cooldown | Na Cloud API, não há cooldown. No Baileys, 30 minutos por chat |
 | Código | Cloud API: `src/cloud/handleMessage.js`. Baileys: `src/handlers/messageHandler.js` |
@@ -80,7 +80,7 @@ https://link-do-gif
 |---------|----------------|
 | `!s` (e variantes de esticar) + URL | Baixa o arquivo e gera figurinha esticada |
 | `!so` (e variantes de proporção) + URL | O mesmo, com proporção original |
-| URL sozinha (Tenor, Giphy ou arquivo `.gif` / `.mp4` / `.webm` / `.webp`) | Equivale a `!s` |
+| URL sozinha (Tenor, Giphy, post do X com vídeo/GIF, ou arquivo `.gif` / `.mp4` / `.webm` / `.webp`) | Equivale a `!s` |
 | URL e depois `Pacote \| Autor` | Metadados opcionais, como na mídia anexada |
 | Mídia anexada e URL na legenda | Usa a mídia anexada. A URL não vira nome de pacote |
 
@@ -88,6 +88,7 @@ https://link-do-gif
 |----------------|-------------------|
 | Página do Tenor (`tenor.com/view/...` ou atalho `tenor.com/....gif`) | Vídeo ou GIF das meta tags (`og:video`, `og:image`) |
 | Página do Giphy (`giphy.com/gifs/...`) | `https://media.giphy.com/media/<id>/giphy.gif` |
+| Post público do X (`x.com/.../status/...`, `twitter.com/.../status/...`, ou espelhos `fxtwitter.com`, `fixupx.com`, `vxtwitter.com`) | MP4 do vídeo ou GIF do post, pela API `api.fxtwitter.com`. Se houver várias qualidades, usa a maior que cabe em 15 MB. `/video/2` escolhe o segundo vídeo. Post sem vídeo/GIF é recusado |
 | Arquivo direto (`.gif`, `.mp4`, `.webm`, `.webp`), inclusive `media.giphy.com` e `media.tenor.com` | O próprio arquivo |
 
 O download recusa endereço local, link com usuário/senha, porta diferente de 80/443 e arquivo acima de 15 MB. Código: `src/services/remoteGif.js`.
@@ -116,7 +117,7 @@ A Cloud API não atende grupo. Quem quiser figurinha abre uma conversa individua
 | Texto sem comando | Boas-vindas pedindo `!ajuda` |
 | Comando sem mídia e sem link | Pede uma imagem, GIF ou vídeo, ou um link com `!s` / `!so` |
 | Link que não é GIF | Recusa com o motivo (página sem mídia, arquivo grande, download falhou) |
-| Vídeo > 30 s | Rejeição com mensagem clara |
+| Vídeo longo | A figurinha usa os primeiros ~10 s |
 | Falha de download/conversão | Na Cloud API: `Não consegui criar a figurinha.` + motivo. No Baileys: mensagem `⚠️` com o motivo |
 | FFmpeg ausente | Conversão animada pode falhar; estáticas (Sharp) podem seguir |
 

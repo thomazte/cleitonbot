@@ -1,19 +1,16 @@
 import { promises as fs } from 'node:fs'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import sharp from 'sharp'
 import ffmpeg from 'fluent-ffmpeg'
 import webp from 'node-webpmux'
 import { cleanFiles, tempPath } from '../utils/fileCleaner.js'
-import { configureFfmpeg, resolveFfmpegPaths } from '../utils/ffmpegPaths.js'
+import { configureFfmpeg } from '../utils/ffmpegPaths.js'
 
-const execFileAsync = promisify(execFile)
 configureFfmpeg()
 
 const STICKER_SIZE = 512
 const MAX_STATIC_BYTES = 200 * 1024
 const MAX_ANIMATED_BYTES = 500 * 1024
-const MAX_VIDEO_DURATION_SEC = 30
+/** A figurinha animada do WhatsApp cabe cerca de 10 s. Vídeos mais longos usam só o começo. */
 const CLIP_DURATION_SEC = 10
 
 /**
@@ -100,13 +97,6 @@ export class StickerService {
     try {
       await fs.writeFile(inPath, inputBuffer)
 
-      const duration = await this.#getDuration(inPath)
-      if (duration > MAX_VIDEO_DURATION_SEC) {
-        throw new Error(
-          `Esse vídeo tem ${Math.round(duration)}s. Envie um clipe de até ${MAX_VIDEO_DURATION_SEC} segundos 🙂`
-        )
-      }
-
       const presets = [
         { fps: 12, quality: 45 },
         { fps: 10, quality: 32 },
@@ -175,31 +165,6 @@ export class StickerService {
         .on('error', (err) => reject(new Error(`Falha no FFmpeg: ${err.message}`)))
         .save(outputPath)
     })
-  }
-
-  /**
-   * Obtém duração em segundos via ffprobe.
-   * @param {string} filePath
-   * @returns {Promise<number>}
-   */
-  async #getDuration(filePath) {
-    try {
-      const { ffprobePath } = resolveFfmpegPaths()
-      const { stdout } = await execFileAsync(ffprobePath, [
-        '-v',
-        'error',
-        '-show_entries',
-        'format=duration',
-        '-of',
-        'default=noprint_wrappers=1:nokey=1',
-        filePath,
-      ])
-      const value = Number.parseFloat(String(stdout).trim())
-      return Number.isFinite(value) ? value : 0
-    } catch {
-      // GIF sem container tipado: assume curto o suficiente
-      return 0
-    }
   }
 
   /**

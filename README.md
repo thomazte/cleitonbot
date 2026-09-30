@@ -17,7 +17,7 @@ https://wa.me/556284818765
 | `!s` · `!fig` · `!sticker` · `s` | Figurinha **esticada** (preenche o quadrado) |
 | `!so` · `!soriginal` · `!prop` | Figurinha com **proporção original** |
 | `!s https://link-do-gif` | Figurinha esticada a partir de um **link** (vale também para `!so`, `!fig`, `!sticker`, `!soriginal` e `!prop`) |
-| só o link | Igual a `!s`, se for Tenor, Giphy ou arquivo `.gif`, `.mp4`, `.webm` ou `.webp` |
+| só o link | Igual a `!s`, se for Tenor, Giphy, um post do X com vídeo/GIF, ou arquivo `.gif`, `.mp4`, `.webm` ou `.webp` |
 | `!s Pacote \| Autor` | Define o nome do pacote e o autor (vale também para `!so` e para o link) |
 | `!menu` · `!ajuda` | Mostra a ajuda rápida |
 
@@ -27,7 +27,7 @@ https://wa.me/556284818765
 2. Se mandar qualquer texto sem comando (ex.: `oi`), o bot responde pedindo para usar `!ajuda`.
 3. Digite `!ajuda` (ou `!menu`) para ver as instruções.
 4. Envie uma **imagem**, **GIF** ou **vídeo** com a legenda `!s` ou `!so`.
-5. Ou mande o **link** do GIF (arquivo direto, Tenor ou Giphy):
+5. Ou mande o **link** do GIF (arquivo direto, Tenor, Giphy ou um post do X):
 
 ```text
 !s https://link-do-gif
@@ -35,7 +35,7 @@ https://wa.me/556284818765
 https://link-do-gif
 ```
 
-O link pode ser uma página do **Tenor** ou do **Giphy**, ou o arquivo direto (`.gif`, `.mp4`, `.webm`, `.webp`). Um link sozinho, sem comando, vira figurinha esticada.
+O link pode ser uma página do **Tenor** ou do **Giphy**, um post público do **X** com vídeo ou GIF (`x.com` ou `twitter.com`), ou o arquivo direto (`.gif`, `.mp4`, `.webm`, `.webp`). Um link sozinho, sem comando, vira figurinha esticada.
 
 Opcional — personalize o pacote e o autor:
 
@@ -48,7 +48,7 @@ Opcional — personalize o pacote e o autor:
 
 ### Limites
 
-- Vídeos de até **30 segundos** (a figurinha usa cerca de **10 s**)
+- Vídeos mais longos entram: a figurinha usa os primeiros **10 segundos**
 - Link de GIF de até **15 MB**, em `http` ou `https` nas portas 80 e 443
 - Figurinhas estáticas e animadas no formato do WhatsApp (512×512)
 - `!s` **estica** a mídia até preencher o quadrado
