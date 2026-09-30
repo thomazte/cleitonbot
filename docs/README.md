@@ -7,7 +7,7 @@ Documentação de arquitetura, stack e operação do **Cleiton Bot**, mantido po
 | [Arquitetura](./arquitetura.md) | Visão geral, fluxo de mensagens e estrutura do repositório |
 | [Stack e tecnologias](./tecnologias.md) | Dependências, papéis e justificativas técnicas |
 | [Operação e deploy](./operacao.md) | Cloud API, webhook, variáveis, PM2 e o processo Baileys que fica parado |
-| [API de comandos](./comandos.md) | Contratos dos comandos (`!s`, `!so`, ajuda, metadados) |
+| [API de comandos](./comandos.md) | Contratos dos comandos (`!s`, `!so`, link de GIF, ajuda, metadados) |
 
 ---
 

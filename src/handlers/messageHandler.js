@@ -1,5 +1,6 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import pino from 'pino'
+import { bareGifLink, downloadRemoteGif, splitCommandArg } from '../services/remoteGif.js'
 import { StickerService } from '../services/stickerService.js'
 
 /** Estica a mídia até preencher 512×512 (achatada). */
@@ -11,10 +12,11 @@ const HELP_RE = /^!(?:menu|ajuda)$/i
 const HELP_TEXT =
   '*Como criar figurinhas*\n' +
   '1. Envie uma imagem/GIF/vídeo com a legenda do comando (ou responda a uma mídia)\n' +
-  '2. `!s` — estica até ficar quadrada (achatada)\n' +
-  '3. `!so` — mantém a proporção original\n' +
-  '4. Opcional: `!s Nome do Pacote | Autor` (vale também para `!so`)\n' +
-  '5. Vídeos: até 30s (a figurinha usa cerca de 10s)'
+  '2. Ou mande o link: `!s https://link-do-gif`\n' +
+  '3. `!s` — estica até ficar quadrada (achatada)\n' +
+  '4. `!so` — mantém a proporção original\n' +
+  '5. Opcional: `!s Nome do Pacote | Autor` (vale também para `!so`)\n' +
+  '6. Vídeos: até 30s (a figurinha usa cerca de 10s)'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +
@@ -96,7 +98,8 @@ export function createMessageHandler(sock, options) {
     const containMatch = trimmed.match(CONTAIN_RE)
     const stretchMatch = containMatch ? null : trimmed.match(STRETCH_RE)
     const match = containMatch || stretchMatch
-    if (!match) {
+    const bare = match ? null : bareGifLink(trimmed)
+    if (!match && !bare) {
       // Não responde às próprias mensagens do número do bot
       if (msg.key.fromMe) return
 
@@ -121,20 +124,22 @@ export function createMessageHandler(sock, options) {
     }
 
     const fit = containMatch ? 'contain' : 'fill'
-    const meta = parseMeta(match[1], defaultMeta)
+    const arg = splitCommandArg(bare || match[1])
+    const meta = parseMeta(arg.metaRaw, defaultMeta)
     const mediaInfo = resolveMedia(msg, content)
-    const trigger = trimmed.split(/\s+/)[0]
+    const trigger = bare ? 'link' : trimmed.split(/\s+/)[0]
 
     console.log(
-      `[comando] ${trigger} | fit=${fit} | tipo=${mediaInfo?.kind || 'sem-mídia'} | de=${jid} | fromMe=${Boolean(msg.key.fromMe)}`
+      `[comando] ${trigger} | fit=${fit} | tipo=${mediaInfo?.kind || (arg.url ? 'link' : 'sem-mídia')} | de=${jid} | fromMe=${Boolean(msg.key.fromMe)}`
     )
 
-    if (!mediaInfo) {
+    if (!mediaInfo && !arg.url) {
       await sock.sendMessage(
         jid,
         {
           text:
-            'Envie uma *imagem*, *GIF* ou *vídeo* com a legenda `!s` ou `!so`, ou *responda* a uma mídia com o comando.\n' +
+            'Envie uma *imagem*, *GIF* ou *vídeo* com a legenda `!s` ou `!so`, *responda* a uma mídia, ou mande o link:\n' +
+            '`!s https://link-do-gif`\n' +
             '`!s` = esticada · `!so` = proporção original',
         },
         { quoted: msg }
@@ -144,34 +149,44 @@ export function createMessageHandler(sock, options) {
 
     try {
       await sock.sendPresenceUpdate('composing', jid)
-      console.log('[sticker] baixando mídia...')
-
-      const buffer = await downloadMediaMessage(
-        mediaInfo.message,
-        'buffer',
-        {},
-        {
-          logger,
-          reuploadRequest: sock.updateMediaMessage,
-        }
-      )
+      let kind = mediaInfo?.kind
+      let buffer
+      let ext = mediaInfo?.ext
+      if (mediaInfo) {
+        console.log('[sticker] baixando mídia...')
+        buffer = await downloadMediaMessage(
+          mediaInfo.message,
+          'buffer',
+          {},
+          {
+            logger,
+            reuploadRequest: sock.updateMediaMessage,
+          }
+        )
+      } else {
+        console.log(`[sticker] baixando link ${arg.url}`)
+        const remote = await downloadRemoteGif(arg.url)
+        buffer = remote.buffer
+        kind = remote.kind
+        ext = remote.ext
+      }
 
       if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
         throw new Error('Não consegui baixar a mídia. Tente reenviar.')
       }
 
       console.log(
-        `[sticker] convertendo (${mediaInfo.kind}, fit=${fit}, ${buffer.length} bytes)...`
+        `[sticker] convertendo (${kind}, fit=${fit}, ${buffer.length} bytes)...`
       )
 
       const convertOptions = { fit }
       let stickerBuffer
-      if (mediaInfo.kind === 'image') {
+      if (kind === 'image') {
         stickerBuffer = await stickerService.fromImage(buffer, meta, convertOptions)
       } else {
         stickerBuffer = await stickerService.fromVideo(
           buffer,
-          mediaInfo.ext,
+          ext,
           meta,
           convertOptions
         )

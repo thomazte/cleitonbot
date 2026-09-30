@@ -4,14 +4,14 @@ Contrato funcional dos comandos interpretados pelo bot. Entrada: texto da mensag
 
 ## Mensagem sem comando (boas-vindas)
 
-Qualquer texto que **não** seja um comando reconhecido dispara uma orientação para usar `!ajuda`.
+Qualquer texto que **não** seja um comando reconhecido nem um link de GIF dispara uma orientação para usar `!ajuda`.
 
 | Detalhe | Comportamento |
 |---------|----------------|
-| Gatilho | Texto livre (ex.: `oi`, `olá`) que não casa com `!s` / `!so` / `!menu` / etc. |
+| Gatilho | Texto livre (ex.: `oi`, `olá`) que não casa com `!s` / `!so` / `!menu` / etc. e não é um link de GIF |
+| Exceções | Link sozinho do Tenor, do Giphy ou de arquivo `.gif` / `.mp4` / `.webm` / `.webp` vira figurinha esticada (`!s`). No Baileys, mensagens `fromMe` são ignoradas |
 | Resposta | `WELCOME_TEXT` — apresenta o bot e indica `!ajuda` |
 | Cooldown | Na Cloud API, não há cooldown. No Baileys, 30 minutos por chat |
-| Exceções | No Baileys, mensagens `fromMe` são ignoradas |
 | Código | Cloud API: `src/cloud/handleMessage.js`. Baileys: `src/handlers/messageHandler.js` |
 
 ## Gatilhos de figurinha
@@ -64,6 +64,34 @@ No **Baileys** também vale responder a uma mídia já enviada com o comando no 
 
 Tipos reconhecidos na Cloud API: imagem, vídeo e documento (GIF). O Baileys ainda aceita sticker estático (como imagem) e sticker animado (como vídeo).
 
+### Link de GIF
+
+O comando pode trazer um endereço no lugar da mídia anexada. Vale para todos os gatilhos de figurinha (`!s`, `!fig`, `!sticker`, `s`, `!so`, `!soriginal`, `!prop`):
+
+```text
+!s https://link-do-gif
+!so https://link-do-gif
+!s https://link-do-gif Meu Pacote | Autor
+!so https://link-do-gif Meu Pacote | Autor
+https://link-do-gif
+```
+
+| Entrada | Comportamento |
+|---------|----------------|
+| `!s` (e variantes de esticar) + URL | Baixa o arquivo e gera figurinha esticada |
+| `!so` (e variantes de proporção) + URL | O mesmo, com proporção original |
+| URL sozinha (Tenor, Giphy ou arquivo `.gif` / `.mp4` / `.webm` / `.webp`) | Equivale a `!s` |
+| URL e depois `Pacote \| Autor` | Metadados opcionais, como na mídia anexada |
+| Mídia anexada e URL na legenda | Usa a mídia anexada. A URL não vira nome de pacote |
+
+| Origem do link | O que o bot baixa |
+|----------------|-------------------|
+| Página do Tenor (`tenor.com/view/...` ou atalho `tenor.com/....gif`) | Vídeo ou GIF das meta tags (`og:video`, `og:image`) |
+| Página do Giphy (`giphy.com/gifs/...`) | `https://media.giphy.com/media/<id>/giphy.gif` |
+| Arquivo direto (`.gif`, `.mp4`, `.webm`, `.webp`), inclusive `media.giphy.com` e `media.tenor.com` | O próprio arquivo |
+
+O download recusa endereço local, link com usuário/senha, porta diferente de 80/443 e arquivo acima de 15 MB. Código: `src/services/remoteGif.js`.
+
 ### Formato da figurinha
 
 O canvas final é sempre 512×512 (exigência do WhatsApp). O modo define só o encaixe da mídia nesse quadrado.
@@ -86,9 +114,10 @@ A Cloud API não atende grupo. Quem quiser figurinha abre uma conversa individua
 | Situação | Comportamento típico |
 |----------|----------------------|
 | Texto sem comando | Boas-vindas pedindo `!ajuda` |
-| Comando sem mídia | Pede uma imagem, GIF ou vídeo com a legenda `!s` ou `!so` |
+| Comando sem mídia e sem link | Pede uma imagem, GIF ou vídeo, ou um link com `!s` / `!so` |
+| Link que não é GIF | Recusa com o motivo (página sem mídia, arquivo grande, download falhou) |
 | Vídeo > 30 s | Rejeição com mensagem clara |
-| Falha de download/conversão | Mensagem `⚠️` com motivo resumido |
+| Falha de download/conversão | Na Cloud API: `Não consegui criar a figurinha.` + motivo. No Baileys: mensagem `⚠️` com o motivo |
 | FFmpeg ausente | Conversão animada pode falhar; estáticas (Sharp) podem seguir |
 
 ## Extensão

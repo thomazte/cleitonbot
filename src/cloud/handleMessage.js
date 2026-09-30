@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import { StickerService } from '../services/stickerService.js'
 import { ensureDir } from '../utils/fileCleaner.js'
 import { downloadMedia, sendSticker, sendText, uploadSticker } from './client.js'
+import { bareGifLink, downloadRemoteGif, splitCommandArg } from '../services/remoteGif.js'
 
 const STRETCH_RE = /^(?:!s(?:ticker)?|!fig|s)(?:\s+([\s\S]+))?$/i
 const CONTAIN_RE = /^(?:!so(?:riginal)?|!prop)(?:\s+([\s\S]+))?$/i
@@ -12,10 +13,11 @@ const STATIC_STICKER_LIMIT = 100 * 1024
 const HELP_TEXT =
   '*Como criar figurinhas*\n' +
   '1. Envie uma imagem, GIF ou vídeo com a legenda do comando\n' +
-  '2. !s — estica até ficar quadrada\n' +
-  '3. !so — mantém a proporção original\n' +
-  '4. Opcional: !s Nome do Pacote | Autor\n' +
-  '5. Vídeos: até 30s (a figurinha usa cerca de 10s)'
+  '2. Ou mande o link: !s https://link-do-gif\n' +
+  '3. !s — estica até ficar quadrada\n' +
+  '4. !so — mantém a proporção original\n' +
+  '5. Opcional: !s Nome do Pacote | Autor\n' +
+  '6. Vídeos: até 30s (a figurinha usa cerca de 10s)'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +
@@ -50,18 +52,22 @@ export async function handleWebhookPayload(body, options) {
   const containMatch = text.match(CONTAIN_RE)
   const stretchMatch = containMatch ? null : text.match(STRETCH_RE)
   const match = containMatch || stretchMatch
-  if (!match) {
+  const bare = match ? null : bareGifLink(text)
+  if (!match && !bare) {
     await sendText(options.token, options.phoneNumberId, from, WELCOME_TEXT)
     return
   }
 
+  const arg = splitCommandArg(bare || match[1])
   const media = mediaOf(message)
-  if (!media) {
+  if (!media && !arg.url) {
     await sendText(
       options.token,
       options.phoneNumberId,
       from,
-      'Envie uma imagem, GIF ou vídeo com a legenda !s ou !so.\n!s = esticada · !so = proporção original'
+      'Envie uma imagem, GIF ou vídeo com a legenda !s ou !so.\n' +
+        'Também vale o link: !s https://link-do-gif\n' +
+        '!s = esticada · !so = proporção original'
     )
     return
   }
@@ -69,15 +75,26 @@ export async function handleWebhookPayload(body, options) {
   try {
     await ensureDir(options.tempDir)
     const stickerService = new StickerService(options.tempDir)
-    const input = await downloadMedia(options.token, media.id)
-    const meta = parseMeta(match[1], { pack: options.pack, author: options.author })
+    const meta = parseMeta(arg.metaRaw, { pack: options.pack, author: options.author })
     const fit = containMatch ? 'contain' : 'fill'
+    let kind = media?.kind
+    let input
+    let ext = media?.ext
+    if (media) {
+      input = await downloadMedia(options.token, media.id)
+    } else {
+      console.log(`[cloud] baixando link ${arg.url}`)
+      const remote = await downloadRemoteGif(arg.url)
+      input = remote.buffer
+      kind = remote.kind
+      ext = remote.ext
+    }
     let sticker =
-      media.kind === 'image'
+      kind === 'image'
         ? await stickerService.fromImage(input, meta, { fit })
-        : await stickerService.fromVideo(input, media.ext, meta, { fit })
+        : await stickerService.fromVideo(input, ext, meta, { fit })
 
-    if (media.kind === 'image' && sticker.length > STATIC_STICKER_LIMIT) {
+    if (kind === 'image' && sticker.length > STATIC_STICKER_LIMIT) {
       sticker = await shrinkStatic(sticker)
     }
 

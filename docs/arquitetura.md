@@ -21,6 +21,7 @@ WhatsApp  →  Meta Cloud API  →  HTTPS /webhook  →  handleMessage  →  Sti
 | `src/cloud/handleMessage.js` | Comandos, boas-vindas e conversão na API oficial |
 | `src/cloud/client.js` | Graph API: texto, download de mídia, upload e envio de figurinha |
 | `src/services/stickerService.js` | Conversão imagem/vídeo → WebP + metadados EXIF (pacote/autor) |
+| `src/services/remoteGif.js` | Download de link de GIF (arquivo direto, Tenor ou Giphy) |
 | `src/utils/fileCleaner.js` | Diretórios temporários e limpeza de arquivos intermediários |
 | `src/utils/ffmpegPaths.js` | Resolução de caminhos do FFmpeg/ffprobe (PATH ou `.env`) |
 | `src/index.js` | Cliente Baileys (legado). Não usar com o número que está na Cloud API |
@@ -30,16 +31,16 @@ WhatsApp  →  Meta Cloud API  →  HTTPS /webhook  →  handleMessage  →  Sti
 
 1. A Meta faz `POST /webhook`. O servidor responde `200` e só então trata o corpo.
 2. Se for `!menu` / `!ajuda` → envia o texto de ajuda.
-3. Se for texto sem comando → envia a boas-vindas pedindo `!ajuda`.
-4. Se for `!s` / `!so` (e variantes) na **legenda** da mídia → segue o fluxo da figurinha.
+3. Se for texto sem comando e sem link de GIF → envia a boas-vindas pedindo `!ajuda`.
+4. Se for `!s` / `!so` (e variantes) na **legenda** da mídia, um comando com link, ou só o link de GIF → segue o fluxo da figurinha.
 5. Status de entrega (`sent`, `read`, `failed`) só é registrado no log.
 
-Responder (reply) a uma mídia antiga não dispara figurinha neste caminho. O comando precisa estar na legenda da imagem, do GIF ou do vídeo.
+Responder (reply) a uma mídia antiga não dispara figurinha neste caminho. Com arquivo anexado, o comando precisa estar na legenda. Com link, o comando e o endereço vão no texto.
 
 ## Fluxo de uma figurinha
 
-1. O usuário envia a mídia com a legenda `!s` ou `!so`.
-2. O handler define o modo (`fill` ou `contain`) e baixa a mídia pela Graph API.
+1. O usuário envia a mídia com a legenda `!s` ou `!so`, ou manda um link de GIF.
+2. O handler define o modo (`fill` ou `contain`) e baixa a mídia pela Graph API, ou o arquivo do link.
 3. `StickerService` gera WebP:
    - **Imagem:** Sharp → 512×512 (`fill` estica; `contain` preserva proporção + transparência). Se passar de 100 KB, a Cloud API comprime de novo.
    - **GIF/vídeo:** FFmpeg → 512×512 no mesmo modo, clip ~10 s, fps limitado, tamanho alvo de 500 KB.

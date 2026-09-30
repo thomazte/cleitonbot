@@ -33,6 +33,8 @@
 | `fill` | `!s` / `!fig` / `!sticker` / `s` | Estica até preencher 512×512 |
 | `contain` | `!so` / `!soriginal` / `!prop` | Mantém proporção; preenche o resto com transparência |
 
+Link de GIF usa o mesmo modo do comando (`!s` = `fill`, `!so` = `contain`). Um link sozinho entra como `fill`. O download está em `src/services/remoteGif.js` (HTTP do Node, sem biblioteca extra).
+
 ### Limites aplicados no código
 
 | Parâmetro | Valor |
@@ -43,6 +45,8 @@
 | Alvo figurinha animada | ≤ 500 KB |
 | Duração máxima do vídeo de entrada | 30 s |
 | Trecho usado na figurinha animada | ~10 s |
+| Tamanho máximo do arquivo baixado por link | 15 MB |
+| Portas aceitas no link | 80 e 443 |
 
 ## Observabilidade
 
