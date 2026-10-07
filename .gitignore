@@ -2,6 +2,7 @@ node_modules/
 auth_info_baileys/
 temp/*
 !temp/.gitkeep
+data/
 .env
 *.log
 .DS_Store

@@ -3,12 +3,15 @@ import sharp from 'sharp'
 import { StickerService } from '../services/stickerService.js'
 import { ensureDir } from '../utils/fileCleaner.js'
 import { downloadMedia, sendSticker, sendText, uploadSticker } from './client.js'
+import { addPack, canonicalPhone, markWelcome, refundSticker, reserveSticker, setExempt, usageFile } from './usage.js'
 import { bareGifLink, downloadRemoteGif, splitCommandArg } from '../services/remoteGif.js'
 
 const STRETCH_RE = /^(?:!s(?:ticker)?|!fig|s)(?:\s+([\s\S]+))?$/i
 const CONTAIN_RE = /^(?:!so(?:riginal)?|!prop)(?:\s+([\s\S]+))?$/i
 const HELP_RE = /^!(?:menu|ajuda)$/i
+const PHONE_ARG = '(\\d[\\d\\s-]{8,})'
 const STATIC_STICKER_LIMIT = 100 * 1024
+const PIX_KEY = '818e2288-a692-4ca6-ab3f-c2a25aa77f79'
 
 const HELP_TEXT =
   '*Como criar figurinhas*\n' +
@@ -17,11 +20,19 @@ const HELP_TEXT =
   '3. !s — estica até ficar quadrada\n' +
   '4. !so — mantém a proporção original\n' +
   '5. Opcional: !s Nome do Pacote | Autor\n' +
-  '6. Vídeos longos: a figurinha usa os primeiros 10s'
+  '6. Vídeos longos: a figurinha usa os primeiros 10s\n' +
+  '7. São 5 figurinhas grátis por dia. Depois, um Pix de R$ 3 libera mais 30'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +
   'Digite !ajuda para ver como me usar.'
+
+const PAYWALL_TEXT =
+  'Você já fez as 5 figurinhas grátis de hoje.\n\n' +
+  'Mais 30 saem por *R$ 3* no Pix.\n' +
+  'A próxima mensagem é só a chave. Segure nela e toque em Copiar.\n\n' +
+  'Na descrição do Pix, coloque o seu WhatsApp com DDD.\n' +
+  'Assim que o pagamento cair, eu libero as 30. Amanhã as 5 grátis voltam.'
 
 const processedIds = new Set()
 
@@ -42,6 +53,33 @@ export async function handleWebhookPayload(body, options) {
 
   const from = message.from
   const text = extractText(message).trim()
+  const owner = options.ownerPhone && canonicalPhone(from) === canonicalPhone(options.ownerPhone)
+  const exempt = owner ? matchOwnerCommand(text, options.cmdExempt) : null
+  const charge = owner && !exempt ? matchOwnerCommand(text, options.cmdCharge) : null
+  const grant = owner && !exempt && !charge ? matchOwnerCommand(text, options.cmdGrant) : null
+
+  if (exempt || charge || grant) {
+    console.log('[cloud] comando interno')
+    if (grant) {
+      const balance = await addPack(options.usageFile, grant[1])
+      await sendText(
+        options.token,
+        options.phoneNumberId,
+        from,
+        `Saldo desse número: ${balance}.`,
+      )
+    } else {
+      await setExempt(options.usageFile, (exempt || charge)[1], Boolean(exempt))
+      await sendText(
+        options.token,
+        options.phoneNumberId,
+        from,
+        exempt ? 'Cota removida desse número.' : 'Cota diária reativada nesse número.',
+      )
+    }
+    return
+  }
+
   console.log(`[cloud] "${text.slice(0, 80)}" de=${from} tipo=${message.type}`)
 
   if (HELP_RE.test(text)) {
@@ -54,7 +92,8 @@ export async function handleWebhookPayload(body, options) {
   const match = containMatch || stretchMatch
   const bare = match ? null : bareGifLink(text)
   if (!match && !bare) {
-    await sendText(options.token, options.phoneNumberId, from, WELCOME_TEXT)
+    const first = await markWelcome(options.usageFile, from)
+    if (first) await sendText(options.token, options.phoneNumberId, from, WELCOME_TEXT)
     return
   }
 
@@ -69,6 +108,15 @@ export async function handleWebhookPayload(body, options) {
         'Também vale o link: !s https://link-do-gif\n' +
         '!s = esticada · !so = proporção original'
     )
+    return
+  }
+
+  const slot = await reserveSticker(options.usageFile, from)
+  if (!slot.ok) {
+    if (slot.notify) {
+      await sendText(options.token, options.phoneNumberId, from, PAYWALL_TEXT)
+      await sendText(options.token, options.phoneNumberId, from, PIX_KEY)
+    }
     return
   }
 
@@ -102,10 +150,21 @@ export async function handleWebhookPayload(body, options) {
     await sendSticker(options.token, options.phoneNumberId, from, mediaId)
     console.log('[cloud] figurinha enviada')
   } catch (err) {
+    await refundSticker(options.usageFile, from, slot.source)
     const friendly = err instanceof Error ? err.message : 'Não foi possível criar a figurinha.'
     console.error('[cloud] figurinha falhou:', friendly)
     await sendText(options.token, options.phoneNumberId, from, `Não consegui criar a figurinha. ${friendly}`)
   }
+}
+
+/**
+ * @param {string} text
+ * @param {string} verb
+ */
+function matchOwnerCommand(text, verb) {
+  if (!verb) return null
+  const escaped = verb.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return text.match(new RegExp(`^!${escaped}\\s+${PHONE_ARG}$`, 'i'))
 }
 
 /**
@@ -176,5 +235,10 @@ export function cloudOptionsFromEnv(rootDir) {
     tempDir: path.resolve(rootDir, process.env.TEMP_DIR || 'temp'),
     pack: process.env.STICKER_PACK || 'Cleiton Bot',
     author: process.env.STICKER_AUTHOR || 'Cleiton',
+    usageFile: usageFile(rootDir),
+    ownerPhone: String(process.env.OWNER_WHATSAPP || '').replace(/\D/g, ''),
+    cmdExempt: String(process.env.OWNER_CMD_EXEMPT || '').trim(),
+    cmdCharge: String(process.env.OWNER_CMD_CHARGE || '').trim(),
+    cmdGrant: String(process.env.OWNER_CMD_GRANT || '').trim(),
   }
 }
