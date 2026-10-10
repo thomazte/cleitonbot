@@ -62,11 +62,23 @@ export async function handleWebhookPayload(body, options) {
     console.log('[cloud] comando interno')
     if (grant) {
       const balance = await addPack(options.usageFile, grant[1])
+      let notice = 'Avisei a pessoa.'
+      try {
+        await sendText(
+          options.token,
+          options.phoneNumberId,
+          grant[1],
+          `Pix confirmado. Liberei mais *30* figurinhas.\nSaldo: ${balance}. Pode mandar a próxima.`,
+        )
+      } catch (err) {
+        notice = 'O saldo entrou, mas o aviso não chegou no WhatsApp dessa pessoa.'
+        console.error('[cloud] aviso de saldo falhou:', err instanceof Error ? err.message : err)
+      }
       await sendText(
         options.token,
         options.phoneNumberId,
         from,
-        `Saldo desse número: ${balance}.`,
+        `Saldo desse número: ${balance}. ${notice}`,
       )
     } else {
       await setExempt(options.usageFile, (exempt || charge)[1], Boolean(exempt))
