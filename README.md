@@ -57,6 +57,10 @@ Opcional — personalize o pacote e o autor:
 
 Link direto: [https://wa.me/556284818765](https://wa.me/556284818765)
 
+## Apoie
+
+Se o Cleiton te ajuda, você pode apoiar o projeto no [Ko-fi](https://ko-fi.com/zamohtexe).
+
 ---
 
 Documentação técnica: [docs/](./docs/) · Licença: [MIT](./LICENSE) · © 2026 ZamohtExe

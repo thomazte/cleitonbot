@@ -21,7 +21,9 @@ const HELP_TEXT =
   '4. !so — mantém a proporção original\n' +
   '5. Opcional: !s Nome do Pacote | Autor\n' +
   '6. Vídeos longos: a figurinha usa os primeiros 10s\n' +
-  '7. São 5 figurinhas grátis por dia. Depois, um Pix de R$ 3 libera mais 30'
+  '7. São 5 figurinhas grátis por dia. Depois, um Pix de R$ 3 libera mais 30\n\n' +
+  'Cleiton é um projeto independente. Se quiser ajudar a manter ele no ar: https://ko-fi.com/zamohtexe\n' +
+  'O Pix libera as figurinhas. O Ko-fi é apoio voluntário.'
 
 const WELCOME_TEXT =
   'Olá! Eu sou o *Cleiton*, bot de figurinhas.\n' +
